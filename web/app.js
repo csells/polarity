@@ -2,13 +2,38 @@
 const $=s=>document.querySelector(s);
 const canvas=$('#screen'),ctx=canvas.getContext('2d',{alpha:false});
 const keyNames=['left','right','up','down','A','B','start','select'];
-const held=new Map();
+const held=new Map(),pulses=new Map();
 let core,emu,romPtr,audio,audioNext=0,muted=false,playing=false,paused=false,lastTime=0,raf,frames=0;
 let gain;
 let controllerDevice=null,controllerSetup=null,controllerProfiles={};
 try{const saved=JSON.parse(localStorage.getItem(ControllerProfile.storageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))controllerProfiles=saved;}catch(error){console.warn('Saved controller layouts unavailable:',error);}
 let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false;
 const keymap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyZ:'A',Space:'A',KeyX:'B',ShiftLeft:'B',ShiftRight:'B',Enter:'start',KeyR:'select'};
+const saveKey='polarity-adventure-save-v2';
+let lastSave='',saveTime=0;
+function cartridgeSave(load=false){
+ if(!emu)return;
+ const file=core._ext_ram_file_data_new(emu);
+ try{
+  const size=core._get_file_data_size(file),ptr=core._get_file_data_ptr(file);
+  if(load){
+   const saved=localStorage.getItem(saveKey);if(!saved)return;
+   const bytes=Uint8Array.from(atob(saved),c=>c.charCodeAt(0));
+   if(bytes.length!==size)throw Error('Saved cartridge has an unexpected size');
+   core.HEAPU8.set(bytes,ptr);core._emulator_read_ext_ram(emu,file);lastSave=saved;
+  }else{
+   core._emulator_write_ext_ram(emu,file);
+   const bytes=core.HEAPU8.subarray(ptr,ptr+size);if(bytes[0]!==0x50)return;
+   const saved=btoa(String.fromCharCode(...bytes));
+   if(saved!==lastSave){localStorage.setItem(saveKey,saved);lastSave=saved;}
+  }
+  $('#save-status').textContent='Progress saved on this browser · flags, rooms & locations';
+ }catch(error){console.warn('Progress save unavailable:',error);$('#save-status').textContent='Progress could not be saved. Keep this tab open to continue.';}
+ finally{core._file_data_delete(file);}
+}
+function openMap(){if(!playing||controllerSetup)return;setPaused(false);pulse('up');pulse('select');}
+window.addEventListener('pagehide',()=>cartridgeSave());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cartridgeSave();});
 function setKey(key,on,source='api'){
  if(!emu)return;
  if(!held.has(key))held.set(key,new Set());
@@ -16,7 +41,7 @@ function setKey(key,on,source='api'){
  core['_set_joyp_'+key](emu,set.size?1:0);
  document.querySelectorAll(`[data-key="${key}"]`).forEach(b=>b.classList.toggle('active',set.size>0));
 }
-function release(){for(const key of keyNames){held.set(key,new Set());if(emu)core['_set_joyp_'+key](emu,0);}document.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));}
+function release(){pulses.clear();for(const key of keyNames){held.set(key,new Set());if(emu)core['_set_joyp_'+key](emu,0);}document.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));}
 function render(){const ptr=core._get_frame_buffer_ptr(emu);ctx.putImageData(new ImageData(new Uint8ClampedArray(core.HEAPU8.buffer,ptr,160*144*4),160,144),0,0);}
 function audioBuffer(){
  if(!audio||audio.state!=='running'||muted)return;
@@ -26,9 +51,9 @@ function audioBuffer(){
  for(let c=0;c<2;c++){const out=b.getChannelData(c);for(let i=0;i<1024;i++)out[i]=(data[i*2+c]-128)/128;}
  const src=audio.createBufferSource();src.buffer=b;src.connect(gain);src.start(audioNext);audioNext+=1024/audio.sampleRate;
 }
-function advance(ticks,sound=true){const until=Math.floor(core._emulator_get_ticks_f64(emu)+ticks);let loops=0;while(core._emulator_get_ticks_f64(emu)<until){const ev=core._emulator_run_until_f64(emu,until);if(ev&1){frames++;}if((ev&2)&&sound)audioBuffer();if(ev&16)throw Error('Invalid opcode in cartridge');if(ev&4)break;if(++loops>10000)throw Error('Emulator failed to advance');}render();}
-function loop(now){raf=requestAnimationFrame(loop);pollGamepad();if(!playing||paused||controllerSetup){lastTime=now;return;}const dt=lastTime?Math.min((now-lastTime)/1000,.05):0;lastTime=now;advance(dt*4194304);}
-function pulse(key){setKey(key,true,'pulse');setTimeout(()=>setKey(key,false,'pulse'),100);}
+function advance(ticks,sound=true){const until=Math.floor(core._emulator_get_ticks_f64(emu)+ticks);let loops=0;while(core._emulator_get_ticks_f64(emu)<until){const ev=core._emulator_run_until_f64(emu,until);if(ev&1){frames++;}if((ev&2)&&sound)audioBuffer();if(ev&16)throw Error('Invalid opcode in cartridge');if(ev&4)break;if(++loops>10000)throw Error('Emulator failed to advance');}for(const [key,until] of pulses){if(core._emulator_get_ticks_f64(emu)>=until){setKey(key,false,'pulse');pulses.delete(key);}}render();}
+function loop(now){raf=requestAnimationFrame(loop);pollGamepad();if(!playing||paused||controllerSetup){lastTime=now;return;}const dt=lastTime?Math.min((now-lastTime)/1000,.05):0;lastTime=now;advance(dt*4194304);if(now-saveTime>1000){saveTime=now;cartridgeSave();}}
+function pulse(key){setKey(key,true,'pulse');pulses.set(key,core._emulator_get_ticks_f64(emu)+419430);}
 function updateSoundButton(){
  $('#sound').setAttribute('aria-pressed',String(muted));
  $('#sound span').textContent=muted?'SOUND OFF':audio&&audio.state!=='running'&&!paused?'ENABLE SOUND':'SOUND ON';
@@ -47,7 +72,7 @@ function start(){
 }
 function setPaused(value){if(!playing)return;paused=value;release();$('#pause').firstChild.textContent=value?'▶':'Ⅱ';$('#pause span').textContent=value?'RESUME':'PAUSE';$('#status').innerHTML=value?'Ⅱ PAUSED':'<i></i> NATIVE GBC · 160 × 144';if(audio){if(value)audio.suspend();else if(!muted)audio.resume().catch(console.error);}lastTime=0;}
 $('#play').addEventListener('click',start);
-window.addEventListener('keydown',e=>{const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat||controllerSetup)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
+window.addEventListener('keydown',e=>{if(e.code==='KeyM'){e.preventDefault();if(!e.repeat)openMap();return;}const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat||controllerSetup)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
 window.addEventListener('keyup',e=>{const key=keymap[e.code];if(key){e.preventDefault();setKey(key,false,e.code);}});
 const pointers=new Map();
 function pointKey(x,y){const e=document.elementFromPoint(x,y);return e?.closest('[data-key]')?.dataset.key;}
@@ -71,6 +96,7 @@ function endPad(e){for(const k of ['left','right','up','down'])setKey(k,false,'p
 for(const type of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(type,endPad);
 pad.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('gamepaddisconnected',()=>pollGamepad());
+$('#map').addEventListener('click',openMap);
 $('#pause').addEventListener('click',()=>setPaused(!paused));
 $('#retry').addEventListener('click',()=>{if(playing){setPaused(false);pulse('select');}});
 $('#sound').addEventListener('click',()=>{
@@ -161,7 +187,7 @@ function pollGamepad(){
  if(pageActive){
   if(!playing&&(pressed('A')||pressed('start'))){start();transition=true;}
   else if(playing&&pressed('start')){setPaused(!paused);transition=true;}
-  else if(playing&&!paused&&pressed('select')){pulse('select');transition=true;}
+  else if(playing&&!paused&&pressed('select')){if(keys.up)pulse('up');pulse('select');transition=true;}
  }
  controllerButtons=buttons;
  delete keys.start;delete keys.select;
@@ -172,7 +198,7 @@ function pollGamepad(){
  for(const [key,on]of Object.entries(keys))setKey(key,enabled&&on,'gamepad');
 }
 (async()=>{try{
- const result=await Promise.all([Binjgb({locateFile:p=>'vendor/'+p}),fetch('polarity.gbc')]);core=result[0];if(!result[1].ok)throw Error('Cartridge download failed');const rom=new Uint8Array(await result[1].arrayBuffer());romPtr=core._malloc(rom.length);core.HEAPU8.set(rom,romPtr);emu=core._emulator_new_simple(romPtr,rom.length,48000,1024,0);if(!emu)throw Error('Invalid cartridge');const joy=core._joypad_new();core._emulator_set_default_joypad_callback(emu,joy);advance(4194304/2,false);$('#loading').hidden=true;$('#play').hidden=false;raf=requestAnimationFrame(loop);
+ const result=await Promise.all([Binjgb({locateFile:p=>'vendor/'+p}),fetch('polarity.gbc')]);core=result[0];if(!result[1].ok)throw Error('Cartridge download failed');const rom=new Uint8Array(await result[1].arrayBuffer());romPtr=core._malloc(rom.length);core.HEAPU8.set(rom,romPtr);emu=core._emulator_new_simple(romPtr,rom.length,48000,1024,0);if(!emu)throw Error('Invalid cartridge');const joy=core._joypad_new();core._emulator_set_default_joypad_callback(emu,joy);cartridgeSave(true);advance(4194304/2,false);$('#loading').hidden=true;$('#play').hidden=false;raf=requestAnimationFrame(loop);
  // Deterministic harness operates the same emulator and cartridge as the UI.
- window.polarity={get core(){return core},get emu(){return emu},setKey,release,advance,render,get frames(){return frames},get playing(){return playing},get paused(){return paused},freeze(){cancelAnimationFrame(raf)},read(addr){return core._emulator_read_mem(emu,addr)},write(addr,v){core._emulator_write_mem(emu,addr,v)}};
+ window.polarity={get core(){return core},get emu(){return emu},setKey,release,advance,render,save:cartridgeSave,get frames(){return frames},get playing(){return playing},get paused(){return paused},freeze(){cancelAnimationFrame(raf)},read(addr){return core._emulator_read_mem(emu,addr)},write(addr,v){core._emulator_write_mem(emu,addr,v)}};
  }catch(e){$('#load-status').textContent='COULD NOT LOAD — PLEASE RELOAD';console.error(e);$('#status').textContent=e.message;}})();

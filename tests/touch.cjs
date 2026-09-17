@@ -2,7 +2,7 @@ const {chromium}=require('playwright');const fs=require('fs');
 (async()=>{
  const b=await chromium.launch({channel:'chrome',headless:true});
  const page=await b.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:8787',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);await page.tap('#play');await page.waitForTimeout(600);await page.evaluate(()=>{polarity.freeze();polarity.release();polarity.advance(4194304,false);});
+ await page.goto(process.env.POLARITY_URL||'http://127.0.0.1:8788',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);await page.tap('#play');await page.waitForTimeout(600);await page.evaluate(()=>{polarity.freeze();polarity.release();polarity.advance(4194304,false);for(let i=0;i<2;i++){polarity.setKey('A',true);polarity.advance(70224*8,false);polarity.release();polarity.advance(70224*8,false);}});
  const xy=await page.evaluate(()=>{const r=document.querySelector('#dpad').getBoundingClientRect(),a=document.querySelector('[data-key="A"]').getBoundingClientRect(),d=document.querySelector('[data-key="B"]').getBoundingClientRect();return{right:{x:r.x+r.width*.9,y:r.y+r.height*.5,id:1},diagonal:{x:r.x+r.width*.9,y:r.y+r.height*.1,id:1},jump:{x:a.x+a.width/2,y:a.y+a.height/2,id:2},dash:{x:d.x+d.width/2,y:d.y+d.height/2,id:2}}});
  const cdp=await page.context().newCDPSession(page);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[xy.right,xy.jump]});

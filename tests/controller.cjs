@@ -1,3 +1,4 @@
+const fs=require('fs');const symbols={};for(const l of fs.readFileSync('build/polarity.noi','utf8').split('\n')){const m=l.match(/^DEF _(deaths|game_mode) 0x([0-9A-F]+)/);if(m)symbols[m[1]]=parseInt(m[2],16)}
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{
@@ -14,13 +15,14 @@ const assert=require('node:assert/strict');
    window.testPads[index]={id:'Standard test controller',index,connected:true,mapping:'standard',axes,buttons:Array.from({length:17},(_,i)=>({pressed:buttons.includes(i),value:buttons.includes(i)?1:0}))};
   };
  });
- await page.goto(process.env.POLARITY_URL||'http://127.0.0.1:8787',{waitUntil:'domcontentloaded'});
+ await page.goto(process.env.POLARITY_URL||'http://127.0.0.1:8788',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.polarity);
  const input=async(buttons=[],axes=[0,0],index=2)=>{await page.evaluate(a=>{padInput(...a);return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));},[buttons,axes,index]);};
  await input([0]);
  await page.waitForFunction(()=>polarity.playing,{timeout:3000});
  console.log('PASS: controller at slot 2 starts game even with suspended audio');
  await input();await page.waitForTimeout(400);
+ await input([0]);await page.waitForFunction(a=>polarity.read(a)===5,symbols.game_mode);await input();await page.waitForTimeout(100);await input([0]);await page.waitForFunction(a=>polarity.read(a)===1,symbols.game_mode);await input();
  assert.match(await page.locator('#controller-status').textContent(),/connected/i);
  await input([0,15]);
  await page.waitForFunction(()=>document.querySelector('[data-key="right"]').classList.contains('active')&&document.querySelector('[data-key="A"]').classList.contains('active'));
@@ -30,7 +32,7 @@ const assert=require('node:assert/strict');
  console.log('PASS: jump + D-pad, diagonal analog dash, west-button dash, dead zone and release');
  await input([9]);assert(await page.evaluate(()=>polarity.paused));await page.waitForTimeout(150);assert(await page.evaluate(()=>polarity.paused));
  await input();await input([9]);assert.equal(await page.evaluate(()=>polarity.paused),false);
- await input();const retries=await page.evaluate(()=>polarity.read(0xC399));await input([8]);await page.waitForFunction(n=>polarity.read(0xC399)===n+1,retries);await input();
+ await input();const retries=await page.evaluate(a=>polarity.read(a),symbols.deaths);await input([8]);await page.waitForFunction(({a,n})=>polarity.read(a)===n+1,{a:symbols.deaths,n:retries});await input();
  console.log('PASS: Start pauses once per press and resumes while paused; Back retries');
  await page.keyboard.down('ArrowLeft');await input();assert(await page.locator('[data-key="left"].active').count());await page.keyboard.up('ArrowLeft');
  await input([15]);await page.evaluate(()=>{testPads[2]=null;});await page.waitForFunction(()=>polarity.paused);assert(await page.evaluate(()=>polarity.paused));assert.equal(await page.locator('[data-key].active').count(),0);

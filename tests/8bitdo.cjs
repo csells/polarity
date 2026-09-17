@@ -1,3 +1,4 @@
+const fs=require('fs');const symbols={};for(const l of fs.readFileSync('build/polarity.noi','utf8').split('\n')){const m=l.match(/^DEF _(deaths|game_mode) 0x([0-9A-F]+)/);if(m)symbols[m[1]]=parseInt(m[2],16)}
 const {chromium}=require('playwright');const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
@@ -11,7 +12,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
    Object.defineProperty(navigator,'getGamepads',{value:()=>[null,null,{id:'8BitDo SN30 test '+kind,index:2,mapping:'',connected:true,axes:rawAxes,buttons:Array.from({length:12},(_,i)=>({pressed:rawButtons.includes(i),value:rawButtons.includes(i)?1:0}))}]});
   },{kind});
   const input=async(buttons=[],axes=null)=>page.evaluate(a=>{rawButtons=a.buttons;rawAxes=a.axes||rawIdle.slice();return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));},{buttons,axes});
-  await page.goto(process.env.POLARITY_URL||'http://127.0.0.1:8787',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);
+  await page.goto(process.env.POLARITY_URL||'http://127.0.0.1:8788',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);
   await input();assert.match(await page.locator('#controller-status').textContent(),/Set up controller/);
   await page.click('.controller-help summary');await page.click('#controller-configure');await input();await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>polarity.playing),false);
   const directions=kind==='axes'?[[0,-1],[0,1],[-1,0],[1,0]]:[[0,0,-1],[0,0,1/7],[0,0,5/7],[0,0,-3/7]];
@@ -22,11 +23,12 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
   }
   assert.match(await page.locator('#controller-setup-prompt').textContent(),/saved/);
   await input([7]);await page.waitForFunction(()=>polarity.playing);await input();await page.waitForTimeout(400);
+  await input([1]);await page.waitForFunction(a=>polarity.read(a)===5,symbols.game_mode);await input();await page.waitForTimeout(100);await input([1]);await page.waitForFunction(a=>polarity.read(a)===1,symbols.game_mode);await input();
   await input([1],directions[3]);for(const k of ['A','right'])assert(await page.locator(`[data-key="${k}"].active`).count());
   await input([0],kind==='axes'?[1,-1]:[0,0,-5/7]);for(const k of ['B','up','right'])assert(await page.locator(`[data-key="${k}"].active`).count());
   await input();assert.equal(await page.locator('[data-key].active').count(),0);
   await input([7]);assert(await page.evaluate(()=>polarity.paused));await input();await input([7]);assert.equal(await page.evaluate(()=>polarity.paused),false);await input();
-  const before=await page.evaluate(()=>polarity.read(0xC399));await input([6]);await page.waitForFunction(n=>polarity.read(0xC399)===n+1,before);await input();
+  const before=await page.evaluate(a=>polarity.read(a),symbols.deaths);await input([6]);await page.waitForFunction(({a,n})=>polarity.read(a)===n+1,{a:symbols.deaths,n:before});await input();
   await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);await input();assert.match(await page.locator('#controller-status').textContent(),/Custom layout ready/);
   await input([7]);await page.waitForFunction(()=>polarity.playing);await input();
   assert.deepEqual(errors,[]);

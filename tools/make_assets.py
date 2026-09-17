@@ -1,34 +1,106 @@
 from pathlib import Path
-# Hand-authored 20 x 18 rooms. Platforms, spikes, gates, refills and exit.
+import json
+# Each route is four screens wide. Safe flag plazas separate its four acts.
+W,H=80,18
 rooms=[]
-def room():
- g=[list(' '*20) for _ in range(18)]
- g[2]=list('#'*20);g[17]=list('#'*20)
- for y in range(3,17):g[y][0]=g[y][19]='#'
+names=[]
+locations=['SPARK DISTRICT','IRON FOUNDRY','HANGING GARDENS','CLOUD WORKS','WIND OBSERVATORY','STORM HEART']
+titles=[['ROOFTOP POST','SWITCH STREET','SIGNAL BRIDGE'],['SENTRY YARD','FURNACE WALK','NIGHT SHIFT'],['ROOTS AND ROPES','CANOPY CROSSING','GREEN ASCENT'],['FIRST LAUNCH','BOUNCE DEPOT','CLOUD EXPRESS'],['TAILWIND TRAIL','UPDRAFT ARRAY','EYE OF THE WIND'],['PULSE CHAMBER','STORM RELAY','THE LAST SIGNAL']]
+def new():
+ g=[list(' '*W) for _ in range(H)]
+ g[2]=list('#'*W);g[17]=list('#'*W)
+ for y in range(3,17):g[y][0]=g[y][-1]='#'
  return g
 def line(g,x,y,n,c='#'):
  for i in range(n):g[y][x+i]=c
 def gate(g,x,y,n,c):
  for i in range(n):g[y+i][x]=c
 def put(g,x,y,c):g[y][x]=c
-# Jump lesson. Staircase to the beacon.
-g=room();line(g,7,16,2,'^');line(g,10,14,3);line(g,15,12,4);put(g,17,11,'E');rooms.append(g)
-# First phase gate: dash to amber.
-g=room();gate(g,9,3,14,'b');line(g,13,15,3);put(g,17,15,'E');rooms.append(g)
-# Dash across a bed of spikes via an aerial recharge.
-g=room();line(g,6,16,9,'^');line(g,5,14,2);put(g,10,12,'o');line(g,15,14,4);put(g,17,13,'E');rooms.append(g)
-# A climb with generous platforms and wall jumps.
-g=room();line(g,5,14,4);line(g,11,11,4);line(g,5,8,4);line(g,14,6,5);put(g,17,5,'E');put(g,11,6,'o');rooms.append(g)
-# A gate in the jump arc; alternate charge on a safe island.
-g=room();line(g,6,16,3,'^');line(g,12,16,4,'^');gate(g,7,3,13,'b');gate(g,13,3,13,'a');line(g,9,14,3);put(g,17,15,'E');rooms.append(g)
-# Two gates, with an airborne recharge between them.
-g=room();line(g,5,16,11,'^');line(g,4,14,3);line(g,15,14,4);gate(g,8,3,13,'b');gate(g,13,3,13,'a');put(g,10,12,'o');put(g,11,12,'o');put(g,17,13,'E');rooms.append(g)
-# Ascending switchback.
-g=room();line(g,5,14,4);line(g,12,11,6);line(g,6,8,4);line(g,13,5,6);gate(g,10,9,8,'b');put(g,10,6,'o');put(g,17,4,'E');rooms.append(g)
-# Final precision gauntlet.
-g=room();line(g,5,16,11,'^');line(g,4,14,3);line(g,9,12,3);line(g,15,9,4);gate(g,7,3,13,'b');gate(g,13,3,13,'a');put(g,12,8,'o');put(g,17,8,'E');rooms.append(g)
-Path('src/levels.c').write_text('#include "engine.h"\nconst char levels[ROOMS][361]={\n'+',\n'.join('\n'.join('"'+''.join(r)+'"' for r in g) for g in rooms)+'\n};\n')
-Path('tools/levels.json').write_text(__import__('json').dumps([''.join(''.join(r) for r in g) for g in rooms]))
+def platform(g,x,y,n):line(g,x,y,n)
+def spikes(g,x,n):line(g,x,16,n,'^')
+def rope(g,x,top=5,bottom=15):gate(g,x,top,bottom-top+1,'r')
+def wind(g,x,n):
+ for y in range(5,16):line(g,x,y,n,'w')
+# Hand-authored routes: introduce, vary, combine each location's central idea.
+for area in range(6):
+ for stage in range(3):
+  g=new()
+  if area==0:
+   if stage==0:
+    spikes(g,9,2);platform(g,13,14,4);platform(g,25,15,4);spikes(g,30,3);platform(g,35,14,3);gate(g,49,3,14,'b');platform(g,53,14,4)
+   elif stage==1:
+    gate(g,10,3,14,'b');platform(g,14,14,3);spikes(g,26,4);platform(g,25,14,3);put(g,30,12,'o');platform(g,33,14,4);gate(g,48,3,14,'a');spikes(g,52,3)
+   else:
+    platform(g,6,14,4);spikes(g,10,6);put(g,12,11,'o');platform(g,16,14,3);gate(g,27,3,14,'b');platform(g,31,14,4);spikes(g,45,8);platform(g,44,14,3);put(g,49,11,'o');platform(g,53,13,5)
+  elif area==1:
+   put(g,10,15,'m');platform(g,13,13,4);put(g,28,15,'m');platform(g,31,14,4);put(g,49,15,'m');platform(g,52,13,5)
+   if stage>=1:
+    spikes(g,16,2);gate(g,35,3,14,'b');platform(g,25,12,3);put(g,54,11,'m')
+   if stage==2:
+    put(g,6,15,'m');spikes(g,45,2);gate(g,53,3,10,'a');put(g,49,11,'o')
+  elif area==2:
+   rope(g,8);platform(g,10,10,6);spikes(g,11,6);rope(g,28);platform(g,30,9,6);spikes(g,31,7);rope(g,46);platform(g,49,8,8);spikes(g,49,8)
+   if stage>=1:
+    rope(g,14,5,10);rope(g,35,4,11);gate(g,33,3,6,'b');put(g,51,6,'o')
+   if stage==2:
+    put(g,25,15,'m');gate(g,51,3,5,'a');rope(g,53,4,9)
+  elif area==3:
+   put(g,8,16,'j');platform(g,12,9,6);spikes(g,12,6);put(g,26,16,'j');platform(g,30,8,7);spikes(g,30,8);put(g,44,16,'j');platform(g,49,8,8);spikes(g,49,8)
+   if stage>=1:
+    gate(g,33,3,5,'b');put(g,30,6,'o');put(g,53,6,'m')
+   if stage==2:
+    rope(g,35,4,9);gate(g,52,3,5,'a');put(g,47,6,'o')
+  elif area==4:
+   wind(g,7,3);platform(g,12,9,6);spikes(g,12,6);wind(g,25,4);platform(g,32,8,6);spikes(g,32,6);wind(g,43,4);platform(g,51,7,6);spikes(g,50,7)
+   if stage>=1:
+    gate(g,34,3,5,'b');rope(g,30,4,10);put(g,47,7,'o')
+   if stage==2:
+    put(g,14,7,'m');gate(g,53,3,4,'a');put(g,48,16,'j')
+  else:
+   gate(g,10,11,6,'h');platform(g,13,13,5);gate(g,27,10,7,'h');platform(g,31,13,6);gate(g,47,9,8,'h');platform(g,51,12,6)
+   if stage>=1:
+    put(g,7,16,'j');put(g,34,11,'m');rope(g,44,5,15);gate(g,54,3,9,'b')
+   if stage==2:
+    wind(g,25,3);gate(g,34,3,8,'a');put(g,31,7,'o');spikes(g,49,5);put(g,48,7,'o')
+  # Tall retaining walls make climbing / launching meaningful, not optional scenery.
+  if area in [2,3,4]:
+   for x,y in [(17,10),(37,9),(57,8)]:gate(g,x,y,17-y,'#')
+  # The fourth act resolves the route's central mechanic in a final delivery.
+  if area==0:
+   platform(g,65,14,3);spikes(g,68,6);put(g,70,11,'o');gate(g,73,3,10,'b' if stage!=1 else 'a')
+  elif area==1:
+   platform(g,64,13,4);put(g,70,15,'m');spikes(g,73,2)
+   if stage:put(g,66,11,'m');gate(g,74,3,12,'b')
+  elif area==2:
+   rope(g,64+stage,4,15);platform(g,69,7,6);spikes(g,68,7);gate(g,74,7,10,'#');put(g,71,5,'o')
+  elif area==3:
+   put(g,64+stage,16,'j');platform(g,70,8,5);gate(g,74,8,9,'#');spikes(g,69,5);put(g,71,6,'o')
+  elif area==4:
+   wind(g,63+stage,4);platform(g,71,8,4);gate(g,74,8,9,'#');spikes(g,70,4);put(g,71,6,'o')
+  else:
+   gate(g,66,8,9,'h');gate(g,72,10,7,'h');platform(g,68,12-stage,3);put(g,69,9-stage,'o')
+  # Safe arrivals, checkpoint plazas and exit landings are shared visual landmarks.
+  for x in [20,40,60]:
+   for xx in range(x-1,x+3):
+    for y in range(12,17):g[y][xx]=' '
+   put(g,x,15,'c')
+  put(g,77,15,'E')
+  rooms.append(g);names.append(titles[area][stage])
+# RLE data keeps all eighteen long rooms in the cartridge's fixed ROM bank.
+packed=[]
+for g in rooms:
+ flat=''.join(''.join(r) for r in g);runs=[];last=flat[0];n=0
+ for c in flat:
+  if c!=last or n==255:runs.extend([n,ord(last)]);last=c;n=0
+  n+=1
+ runs.extend([n,ord(last),0]);packed.append(runs)
+code='#include "engine.h"\n'
+for i,data in enumerate(packed):code+='static const uint8_t room_%d[]={%s};\n'%(i,','.join(map(str,data)))
+code+='const uint8_t * const levels[ROOMS]={'+','.join('room_'+str(i) for i in range(len(rooms)))+'};\n'
+code+='const char * const names[ROOMS]={'+','.join('"'+n+'"' for n in names)+'};\n'
+code+='const char * const locations[LOCATIONS]={'+','.join('"'+n+'"' for n in locations)+'};\n'
+Path('src/levels.c').write_text(code)
+Path('tools/levels.json').write_text(json.dumps([''.join(''.join(r) for r in g) for g in rooms]))
 # 2bpp pixel artwork, authored at native resolution.
 patterns=[
 ['00000000']*8,
@@ -41,6 +113,13 @@ patterns=[
 ['00000000','00000000','00010000','00121000','00010000','00000000','00000000','00000000'],
 ['00000000','00000000','11111111','10000001','10200101','10000001','10010001','11111111'],
 ['00000000','00000000','00000000','00000000','00000000','00000000','00000000','11111111'],
+]
+patterns += [
+['00022000','00033000','00022000','00322300','00022000','00033000','00022000','00322300'],
+['22222222','03333330','00022000','00200200','02000020','00200200','00022000','33333333'],
+['00222220','00233320','00233200','00222000','00200000','00200000','00200000','02220000'],
+['00020000','00222000','02020200','00020000','00020000','00000000','00020000','00000000'],
+['00011000','00122100','00033000','00122100','00033000','00122100','00011000','00011000'],
 ]
 font={
 'A':['01110','10001','10001','11111','10001','10001','10001'],
@@ -94,5 +173,6 @@ def pack(rows):
   out += [sum((int(v)&1)<<(7-i) for i,v in enumerate(row)),sum(((int(v)>>1)&1)<<(7-i) for i,v in enumerate(row))]
  return out
 sprites=[['00111100','01222210','12222221','12233331','12230301','12233331','01222210','00122100'],['01222210','01222210','00111100','00100100','01100110','00000000','00000000','00000000'],['00000000','00010000','00122000','01233210','00122000','00010000','00000000','00000000']]
+sprites.append(['00111100','01233210','12300321','12333321','01222210','00111100','01100110','01000010'])
 Path('src/art.h').write_text('const unsigned char tiles[]={'+','.join(str(n) for p in patterns for n in pack(p))+'};\nconst unsigned char sprites[]={'+','.join(str(n) for p in sprites for n in pack(p))+'};\n#define TILE_COUNT '+str(len(patterns))+'\n')
-print('Generated 8 rooms,',len(patterns),'background tiles and 3 sprite tiles')
+print('Generated 18 scrolling rooms,',len(patterns),'background tiles and 4 sprite tiles')

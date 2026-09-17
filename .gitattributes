@@ -1,0 +1,6 @@
+# Packed cartridge assets are bytes, even when a palette happens to contain
+# no NUL in Git's initial text-detection window.
+*.tiles binary
+*.pal binary
+*.gba binary
+*.gbc binary

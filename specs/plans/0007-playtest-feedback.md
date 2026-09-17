@@ -74,7 +74,7 @@ The exact underlying browser/emulator failure remains unconfirmed.
   the latest recorded failure across reloads, and show storage failures clearly.
 - [x] Suspend background input polling as well as emulation; preserve controller
   release-before-resume behavior after returning to the page.
-- [ ] Finish regression checks and publish the diagnostic recorder.
+- [x] Finish regression checks and publish the diagnostic recorder.
 
 The diagnostic acceptance test covers actual tab focus loss, injected
 freeze/resume events (automation forces visibility to remain visible), a runtime
@@ -82,5 +82,15 @@ exception, and an actual isolated Chrome renderer crash. The downloaded emulator
 snapshot is loaded and advanced in the same native mGBA core. Storage-quota
 failure, console warnings and unhandled promise rejections are also exercised.
 No claim is made that the family's specific crash was reproduced.
+
+Published Sites version 10 from `a0ffd35de676780969e755dcff237af2382492f3`.
+The diagnostic acceptance test also passed against the public site, including
+report download after a killed renderer, reloading an emulator snapshot in mGBA,
+and storage-quota failure. Published player files match local source byte for
+byte; the ROM remains unchanged. Deployed player identity:
+`613b305ab429247b9ea923969f0836dd05d881a246e7139226c38e7d1fbf1cb7`.
+Local controller, 8BitDo, touch, audio, runtime-recovery, timing, and GBA browser
+regressions passed. Controller tests were repeated after the final background
+input guards; holding Start while returning cannot accidentally unpause.
 
 Browser discard semantics: [Chrome Page Lifecycle API](https://developer.chrome.com/docs/web-platform/page-lifecycle-api).

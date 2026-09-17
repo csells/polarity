@@ -1,34 +1,34 @@
 #include "engine.h"
 uint8_t world[ROOM_W*ROOM_H],enemy_count;
-Enemy enemies[8];
+Enemy enemies[8],relay_points[2],letter_point;
 void load_room(uint8_t room){
- const uint8_t *p=levels[room];uint16_t i=0;uint8_t n,t;
+ const uint8_t *p=levels[room];uint16_t i=0;uint8_t n,t,x=0,y=0;
  enemy_count=0;
- while((n=*p++)){t=*p++;while(n--){world[i]=t;if(t=='m'){if(enemy_count<8){enemies[enemy_count].x=(i%ROOM_W)*8;enemies[enemy_count++].y=(i/ROOM_W)*8+1;}world[i]=' ';}i++;}}
+ while((n=*p++)){t=*p++;while(n--){world[i]=t;if(t=='u'||t=='v'){uint8_t r=t=='v';relay_points[r].x=x*8;relay_points[r].y=y*8;}if(t=='l'){letter_point.x=x*8;letter_point.y=y*8;}if(t=='m'){if(enemy_count<8){enemies[enemy_count].x=x*8;enemies[enemy_count++].y=y*8+1;}world[i]=' ';}i++;if(++x==ROOM_W){x=0;y++;}}}
 }
 int16_t enemy_x(uint8_t n,uint8_t clock){uint8_t t=(clock+n*31)&63;return enemies[n].x+(t<32?t:63-t)/2-8;}
 uint8_t tile(uint8_t room,int16_t x,int16_t y){
  (void)room;if(x<0||x>=ROOM_W*8||y<24)return '#';if(y>=144)return '^';
  return world[(y/8)*ROOM_W+x/8];
 }
-static uint8_t solid(uint8_t room,int16_t x,int16_t y){return tile(room,x,y)=='#';}
-static uint8_t blocked(uint8_t room,int16_t x,int16_t y){
- return solid(room,x,y)||solid(room,x+5,y)||solid(room,x,y+10)||solid(room,x+5,y+10)||solid(room,x,y+5)||solid(room,x+5,y+5);
+static uint8_t solid(State *s,uint8_t room,int16_t x,int16_t y){uint8_t t=tile(room,x,y);return t=='#'||(t=='='&&(s->relays&1))||(t=='+'&&(s->relays&2));}
+static uint8_t blocked(State *s,uint8_t room,int16_t x,int16_t y){
+ return solid(s,room,x,y)||solid(s,room,x+5,y)||solid(s,room,x,y+10)||solid(s,room,x+5,y+10)||solid(s,room,x,y+5)||solid(s,room,x+5,y+5);
 }
 void init_state(State *s,uint8_t room){
  (void)room;
- s->x=16*16;s->y=125*16;s->vx=0;s->vy=0;s->phase=0;s->charge=1;s->ground=0;s->coyote=0;s->buffer=0;s->dash=0;s->prev=JUMP|DASH;s->face=1;s->wall=0;s->lock=0;s->defeated=0;s->clock=0;s->checkpoint=0;s->boost=0;
+ s->x=16*16;s->y=125*16;s->vx=0;s->vy=0;s->phase=0;s->charge=1;s->ground=0;s->coyote=0;s->buffer=0;s->dash=0;s->prev=JUMP|DASH;s->face=1;s->wall=0;s->lock=0;s->defeated=0;s->clock=0;s->checkpoint=0;s->boost=0;s->relays=0;s->letter=0;
 }
-void respawn(State *s,uint8_t room){uint8_t cp=s->checkpoint;init_state(s,room);s->checkpoint=cp;if(cp)s->x=cp*128;}
+void respawn(State *s,uint8_t room){uint8_t cp=s->checkpoint,r=s->relays,l=s->letter;init_state(s,room);s->checkpoint=cp;s->relays=r;s->letter=l;if(cp)s->x=cp*128;}
 uint8_t step(State *s,uint8_t room,uint8_t keys){
  uint8_t ev=0,press=keys&~s->prev,i,t; int16_t px,py,nx,ny,delta; int8_t dir;
  s->clock++;s->prev=keys; px=s->x/16;py=s->y/16;
  if(press&JUMP)s->buffer=7;else if(s->buffer)s->buffer--;
  if(s->ground){s->coyote=6;s->charge=1;}else if(s->coyote)s->coyote--;
- s->wall=blocked(room,px-1,py)?1:(blocked(room,px+1,py)?2:0);
+ s->wall=blocked(s,room,px-1,py)?1:(blocked(s,room,px+1,py)?2:0);
  if(s->buffer&&(s->coyote||s->wall||tile(room,px+3,py+5)=='r')){
   s->vy=-58;s->buffer=0;s->ground=0;s->coyote=0;s->dash=0;ev|=EV_JUMP;
-  if(s->wall&&!solid(room,px+2,py+11)){s->vx=s->wall==1?32:-32;s->lock=9;s->charge=1;}
+  if(s->wall&&!solid(s,room,px+2,py+11)){s->vx=s->wall==1?32:-32;s->lock=9;s->charge=1;}
  }
  if((press&DASH)&&s->charge){
   s->phase^=1;s->charge=0;s->dash=12;s->lock=0;ev|=EV_DASH;
@@ -56,9 +56,9 @@ uint8_t step(State *s,uint8_t room,uint8_t keys){
  /* Move one pixel at a time: dash cannot tunnel through a wall. */
  nx=s->x+s->vx;ny=s->y+s->vy;delta=nx/16-px;
  dir=delta>0?1:-1;
- while(delta){if(blocked(room,px+dir,py)){nx=px*16;s->vx=0;break;}px+=dir;delta-=dir;}
+ while(delta){if(blocked(s,room,px+dir,py)){nx=px*16;s->vx=0;break;}px+=dir;delta-=dir;}
  s->x=nx;delta=ny/16-py;dir=delta>0?1:-1;s->ground=0;
- while(delta){if(blocked(room,px,py+dir)){ny=py*16;s->vy=0;if(dir>0){s->ground=1;s->charge=1;}break;}py+=dir;delta-=dir;}
+ while(delta){if(blocked(s,room,px,py+dir)){ny=py*16;s->vy=0;if(dir>0){s->ground=1;s->charge=1;}break;}py+=dir;delta-=dir;}
  s->y=ny;
  if(py>132)return ev|EV_DIE;
  /* Sample interior of the player, giving spikes a small forgiving margin. */
@@ -67,7 +67,9 @@ uint8_t step(State *s,uint8_t room,uint8_t keys){
   t=tile(room,xx,yy);
   if((t=='^'&&(yy&7)>2)||(t=='a'&&s->phase!=0)||(t=='b'&&s->phase!=1))return ev|EV_DIE;
   if(t=='h'&&(s->clock&64))return ev|EV_DIE;
-  if(t=='E')return ev|EV_EXIT;
+  if(t=='E'&&s->relays==3)return ev|EV_EXIT;
+  if((t=='u'&&s->phase==0)||(t=='v'&&s->phase==1)){uint8_t bit=t=='u'?1:2;if(!(s->relays&bit)){s->relays|=bit;ev|=EV_RELAY;}}
+  if(t=='l')s->letter=1;
   if(t=='c'&&xx/8>s->checkpoint){s->checkpoint=xx/8;ev|=EV_CHECKPOINT;}
   if(t=='j'&&s->vy>=0){s->vy=-88;s->boost=24;s->charge=1;ev|=EV_SPRING;}
 

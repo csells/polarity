@@ -16,13 +16,13 @@
 #define EV_DIE 4
 #define EV_EXIT 8
 #define EV_REFILL 16
-#define EV_LAND 32
+#define EV_RELAY 32
 #define EV_CHECKPOINT 64
 #define EV_SPRING 128
-typedef struct { int16_t x,y,vx,vy; uint8_t phase,charge,ground,coyote,buffer,dash,prev,face,wall,lock; uint16_t defeated; uint8_t clock,checkpoint,boost; } State;
+typedef struct { int16_t x,y,vx,vy; uint8_t phase,charge,ground,coyote,buffer,dash,prev,face,wall,lock; uint16_t defeated; uint8_t clock,checkpoint,boost,relays,letter; } State;
 typedef struct { uint16_t x; uint8_t y; } Enemy;
 extern uint8_t world[ROOM_W*ROOM_H],enemy_count;
-extern Enemy enemies[8];
+extern Enemy enemies[8],relay_points[2],letter_point;
 extern const uint8_t * const levels[ROOMS];
 extern const char * const names[ROOMS];
 extern const char * const locations[LOCATIONS];

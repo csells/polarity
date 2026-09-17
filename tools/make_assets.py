@@ -1,91 +1,6 @@
 from pathlib import Path
 import json
-# Each route is four screens wide. Safe flag plazas separate its four acts.
-W,H=80,18
-rooms=[]
-names=[]
-locations=['SPARK DISTRICT','IRON FOUNDRY','HANGING GARDENS','CLOUD WORKS','WIND OBSERVATORY','STORM HEART']
-titles=[['ROOFTOP POST','SWITCH STREET','SIGNAL BRIDGE'],['SENTRY YARD','FURNACE WALK','NIGHT SHIFT'],['ROOTS AND ROPES','CANOPY CROSSING','GREEN ASCENT'],['FIRST LAUNCH','BOUNCE DEPOT','CLOUD EXPRESS'],['TAILWIND TRAIL','UPDRAFT ARRAY','EYE OF THE WIND'],['PULSE CHAMBER','STORM RELAY','THE LAST SIGNAL']]
-def new():
- g=[list(' '*W) for _ in range(H)]
- g[2]=list('#'*W);g[17]=list('#'*W)
- for y in range(3,17):g[y][0]=g[y][-1]='#'
- return g
-def line(g,x,y,n,c='#'):
- for i in range(n):g[y][x+i]=c
-def gate(g,x,y,n,c):
- for i in range(n):g[y+i][x]=c
-def put(g,x,y,c):g[y][x]=c
-def platform(g,x,y,n):line(g,x,y,n)
-def spikes(g,x,n):line(g,x,16,n,'^')
-def rope(g,x,top=5,bottom=15):gate(g,x,top,bottom-top+1,'r')
-def wind(g,x,n):
- for y in range(5,16):line(g,x,y,n,'w')
-# Hand-authored routes: introduce, vary, combine each location's central idea.
-for area in range(6):
- for stage in range(3):
-  g=new()
-  if area==0:
-   if stage==0:
-    spikes(g,9,2);platform(g,13,14,4);platform(g,25,15,4);spikes(g,30,3);platform(g,35,14,3);gate(g,49,3,14,'b');platform(g,53,14,4)
-   elif stage==1:
-    gate(g,10,3,14,'b');platform(g,14,14,3);spikes(g,26,4);platform(g,25,14,3);put(g,30,12,'o');platform(g,33,14,4);gate(g,48,3,14,'a');spikes(g,52,3)
-   else:
-    platform(g,6,14,4);spikes(g,10,6);put(g,12,11,'o');platform(g,16,14,3);gate(g,27,3,14,'b');platform(g,31,14,4);spikes(g,45,8);platform(g,44,14,3);put(g,49,11,'o');platform(g,53,13,5)
-  elif area==1:
-   put(g,10,15,'m');platform(g,13,13,4);put(g,28,15,'m');platform(g,31,14,4);put(g,49,15,'m');platform(g,52,13,5)
-   if stage>=1:
-    spikes(g,16,2);gate(g,35,3,14,'b');platform(g,25,12,3);put(g,54,11,'m')
-   if stage==2:
-    put(g,6,15,'m');spikes(g,45,2);gate(g,53,3,10,'a');put(g,49,11,'o')
-  elif area==2:
-   rope(g,8);platform(g,10,10,6);spikes(g,11,6);rope(g,28);platform(g,30,9,6);spikes(g,31,7);rope(g,46);platform(g,49,8,8);spikes(g,49,8)
-   if stage>=1:
-    rope(g,14,5,10);rope(g,35,4,11);gate(g,33,3,6,'b');put(g,51,6,'o')
-   if stage==2:
-    put(g,25,15,'m');gate(g,51,3,5,'a');rope(g,53,4,9)
-  elif area==3:
-   put(g,8,16,'j');platform(g,12,9,6);spikes(g,12,6);put(g,26,16,'j');platform(g,30,8,7);spikes(g,30,8);put(g,44,16,'j');platform(g,49,8,8);spikes(g,49,8)
-   if stage>=1:
-    gate(g,33,3,5,'b');put(g,30,6,'o');put(g,53,6,'m')
-   if stage==2:
-    rope(g,35,4,9);gate(g,52,3,5,'a');put(g,47,6,'o')
-  elif area==4:
-   wind(g,7,3);platform(g,12,9,6);spikes(g,12,6);wind(g,25,4);platform(g,32,8,6);spikes(g,32,6);wind(g,43,4);platform(g,51,7,6);spikes(g,50,7)
-   if stage>=1:
-    gate(g,34,3,5,'b');rope(g,30,4,10);put(g,47,7,'o')
-   if stage==2:
-    put(g,14,7,'m');gate(g,53,3,4,'a');put(g,48,16,'j')
-  else:
-   gate(g,10,11,6,'h');platform(g,13,13,5);gate(g,27,10,7,'h');platform(g,31,13,6);gate(g,47,9,8,'h');platform(g,51,12,6)
-   if stage>=1:
-    put(g,7,16,'j');put(g,34,11,'m');rope(g,44,5,15);gate(g,54,3,9,'b')
-   if stage==2:
-    wind(g,25,3);gate(g,34,3,8,'a');put(g,31,7,'o');spikes(g,49,5);put(g,48,7,'o')
-  # Tall retaining walls make climbing / launching meaningful, not optional scenery.
-  if area in [2,3,4]:
-   for x,y in [(17,10),(37,9),(57,8)]:gate(g,x,y,17-y,'#')
-  # The fourth act resolves the route's central mechanic in a final delivery.
-  if area==0:
-   platform(g,65,14,3);spikes(g,68,6);put(g,70,11,'o');gate(g,73,3,10,'b' if stage!=1 else 'a')
-  elif area==1:
-   platform(g,64,13,4);put(g,70,15,'m');spikes(g,73,2)
-   if stage:put(g,66,11,'m');gate(g,74,3,12,'b')
-  elif area==2:
-   rope(g,64+stage,4,15);platform(g,69,7,6);spikes(g,68,7);gate(g,74,7,10,'#');put(g,71,5,'o')
-  elif area==3:
-   put(g,64+stage,16,'j');platform(g,70,8,5);gate(g,74,8,9,'#');spikes(g,69,5);put(g,71,6,'o')
-  elif area==4:
-   wind(g,63+stage,4);platform(g,71,8,4);gate(g,74,8,9,'#');spikes(g,70,4);put(g,71,6,'o')
-  else:
-   gate(g,66,8,9,'h');gate(g,72,10,7,'h');platform(g,68,12-stage,3);put(g,69,9-stage,'o')
-  # Safe arrivals, checkpoint plazas and exit landings are shared visual landmarks.
-  for x in [20,40,60]:
-   for xx in range(x-1,x+3):
-    for y in range(12,17):g[y][xx]=' '
-   put(g,x,15,'c')
-  put(g,77,15,'E')
-  rooms.append(g);names.append(titles[area][stage])
+from rooms import W,H,rooms,names,locations,intent
 # RLE data keeps all eighteen long rooms in the cartridge's fixed ROM bank.
 packed=[]
 for g in rooms:
@@ -122,6 +37,9 @@ patterns += [
 ['00011000','00122100','00033000','00122100','00033000','00122100','00011000','00011000'],
 ]
 font={
+':':['000','010','010','000','010','010','000'],
+',':['000','000','000','000','010','010','100'],
+'?':['01110','10001','00001','00010','00100','00000','00100'],
 'A':['01110','10001','10001','11111','10001','10001','10001'],
 'B':['11110','10001','10001','11110','10001','10001','11110'],
 'C':['01111','10000','10000','10000','10000','10000','01111'],
@@ -167,6 +85,38 @@ while len(patterns)<32:patterns.append(['00000000']*8)
 for code in range(32,91):
  rows=font.get(chr(code),['00000']*7)
  patterns.append(['0'+r.replace('1','2').ljust(7,'0') for r in rows]+['00000000'])
+# Location silhouettes, restored circuitry, and small readable object icons.
+extra={
+ 'SOCKET':['22222222','21111112','21022012','21233212','21233212','21022012','21111112','22222222'],
+ 'LINKED':['22222222','23333332','23233232','23322332','23322332','23233232','23333332','22222222'],
+ 'LETTER':['00000000','22222222','23333332','22333322','23222232','23322332','22222222','00000000'],
+ 'BRIDGE_OFF':['00000000','10101010','00000000','00000000','00000000','00000000','00000000','00000000'],
+ 'BRIDGE_ON':['22222222','33333333','10200201','01022010','00100100','00000000','00000000','00000000'],
+ 'LAMP':['00022000','00233200','00233200','00022000','00011000','00011000','00011000','00111100'],
+ 'ROOF':['00022000','00233200','02333320','22222222','01211210','01211210','01111110','01111110'],
+ 'GEAR':['00200200','02222220','22011022','02122120','02122120','22011022','02222220','00200200'],
+ 'TREE':['00022000','00233200','02333320','23333332','02333320','00011000','00011000','00111100'],
+ 'CLOUD':['00022200','00233320','02333332','23333332','02222220','00011000','00111100','00111100'],
+ 'DISH':['20000002','23000032','02300320','00233200','00022000','00011000','00111100','01111110'],
+ 'HEART':['02200220','23322332','23333332','02333320','00233200','00022000','00011000','00111100'],
+ 'BRICK':['22222222','31113111','31113111','33333333','11311131','11311131','11311131','33333333'],
+ 'METAL':['22222222','32111123','31111113','31122113','31122113','31111113','32111123','33333333'],
+ 'MOSS':['22222222','22322323','32123213','31121113','31112113','31111113','31311313','33333333'],
+ 'RIVET':['22222222','32111123','31111113','31111113','31111113','31111113','32111123','33333333'],
+ 'GLASS':['22222222','32111123','31211213','31122113','31122113','31211213','32111123','33333333'],
+ 'CORE':['22222222','31122113','31122113','32233223','32233223','31122113','31122113','33333333'],
+ 'PIPES':['00011000','00011000','11111111','12222221','11111111','00011000','00011000','00011000'],
+ 'LEAVES':['00000000','00200020','02320232','00222020','00011000','00011000','00000000','00000000'],
+ 'CHAIN':['00011000','00100100','00011000','00011000','00100100','00011000','00011000','00100100'],
+ 'STARS':['00000000','00020000','00232000','00020000','00000000','00000000','02000000','00000000'],
+ 'CABLE':['00000000','11111111','12222221','11111111','00000000','00000000','00000000','00000000'],
+ 'WINDOW_LIT':['00000000','00000000','11111111','12211221','12211221','11111111','12211221','11111111'],
+ 'PORTRAIT':['00222200','02333320','23133132','23333332','02322320','00222200','02333320','23333332']
+}
+defines=[]
+for name,rows in extra.items():
+ defines.append('#define T_'+name+' '+str(len(patterns)))
+ patterns.append(rows)
 def pack(rows):
  out=[]
  for row in rows:
@@ -174,5 +124,12 @@ def pack(rows):
  return out
 sprites=[['00111100','01222210','12222221','12233331','12230301','12233331','01222210','00122100'],['01222210','01222210','00111100','00100100','01100110','00000000','00000000','00000000'],['00000000','00010000','00122000','01233210','00122000','00010000','00000000','00000000']]
 sprites.append(['00111100','01233210','12300321','12333321','01222210','00111100','01100110','01000010'])
-Path('src/art.h').write_text('const unsigned char tiles[]={'+','.join(str(n) for p in patterns for n in pack(p))+'};\nconst unsigned char sprites[]={'+','.join(str(n) for p in sprites for n in pack(p))+'};\n#define TILE_COUNT '+str(len(patterns))+'\n')
-print('Generated 18 scrolling rooms,',len(patterns),'background tiles and 4 sprite tiles')
+sprites += [
+ ['01222210','01222210','00111100','01100100','01000010','00000000','00000000','00000000'],
+ ['01222210','01222210','00111100','00100110','01000010','00000000','00000000','00000000'],
+ ['01222210','00111100','01100110','01000010','00000000','00000000','00000000','00000000'],
+ ['12222221','10222201','00111100','01100110','01000010','00000000','00000000','00000000'],
+ ['00022000','00233200','02333320','02300320','02333320','00222200','00022000','00222200'],
+ ['00222200','02233220','02333320','00222200','00200200','02200220','00000000','00000000']]
+Path('src/art.h').write_text('const unsigned char tiles[]={'+','.join(str(n) for p in patterns for n in pack(p))+'};\nconst unsigned char sprites[]={'+','.join(str(n) for p in sprites for n in pack(p))+'};\n#define TILE_COUNT '+str(len(patterns))+'\n'+'\n'.join(defines)+'\n#define SPRITE_COUNT '+str(len(sprites))+'\n')
+print('Generated 18 scrolling rooms,',len(patterns),'background tiles and',len(sprites),'sprite tiles')

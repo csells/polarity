@@ -14,6 +14,8 @@ Run `python3 server.py`, then open port 8787. The web player includes multitouch
 - Enter: pause
 - R: retry room
 
+Standard browser-mapped controllers (USB or Bluetooth): D-pad / left stick to move and aim; bottom face button (Xbox A / PlayStation Cross) to jump; right or left face button (B / Circle or X / Square) to dash; Start / Options to start, pause and resume; Back / View / Share to retry. Press a button after connecting so the browser detects it. If audio remains locked, tap **Enable Sound** once. Disconnecting the active controller pauses the game.
+
 On hardware: D-pad to move, A to jump, B to dash, Start to pause, Select to retry.
 
 ## Build
@@ -26,7 +28,7 @@ The ROM is 32 KiB and targets Game Boy Color hardware. Progress lasts for the cu
 
 `cc -O2 -o tools/solve tests/solve.c src/engine.c src/levels.c && ./tools/solve` searches for a route through every room using the actual C physics engine, producing replayable inputs in `artifacts/`.
 
-`node tests/browser.cjs` checks boot and desktop/mobile rendering. `node tests/replay.cjs` replays all eight room solutions in the actual cartridge, stepping its CPU to input polls. `node tests/touch.cjs` checks simultaneous touch controls, diagonal dashes, pause, sound, and phone layouts. Install the dev dependency with `npm install`.
+`node tests/browser.cjs` checks boot and desktop/mobile rendering. `node tests/replay.cjs` replays all eight room solutions in the actual cartridge, stepping its CPU to input polls. `node tests/touch.cjs` checks simultaneous touch controls, diagonal dashes, pause, sound, and phone layouts. `node tests/controller.cjs` verifies standard controller inputs through the browser Gamepad API using simulated controller reports, including start with locked audio, pause/resume, disconnect/reconnect, dead zones, and focus safety. Physical USB/Bluetooth hardware requires a device/browser that exposes the standard mapping. Install the dev dependency with `npm install`.
 
 ## Files
 

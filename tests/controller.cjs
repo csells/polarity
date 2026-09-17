@@ -33,7 +33,7 @@ const assert=require('node:assert/strict');
  await input();const retries=await page.evaluate(()=>polarity.read(0xC399));await input([8]);await page.waitForFunction(n=>polarity.read(0xC399)===n+1,retries);await input();
  console.log('PASS: Start pauses once per press and resumes while paused; Back retries');
  await page.keyboard.down('ArrowLeft');await input();assert(await page.locator('[data-key="left"].active').count());await page.keyboard.up('ArrowLeft');
- await input([15]);await page.evaluate(()=>{testPads[2]=null;});await page.waitForTimeout(100);assert(await page.evaluate(()=>polarity.paused));assert.equal(await page.locator('[data-key].active').count(),0);
+ await input([15]);await page.evaluate(()=>{testPads[2]=null;});await page.waitForFunction(()=>polarity.paused);assert(await page.evaluate(()=>polarity.paused));assert.equal(await page.locator('[data-key].active').count(),0);
  await input();await input([9]);assert.equal(await page.evaluate(()=>polarity.paused),false);await input();
  console.log('PASS: keyboard coexists; disconnect releases inputs and pauses; reconnect resumes');
  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await input([9]);assert(await page.evaluate(()=>polarity.paused));

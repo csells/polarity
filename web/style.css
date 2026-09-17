@@ -9,3 +9,6 @@
 
 .controller-status{font:9px var(--mono);line-height:1.6;color:var(--muted);margin:12px 4px 0}
 @media(max-height:500px) and (orientation:landscape){.controller-status{display:none}}
+
+.controller-help{font:11px/1.8 var(--sans);color:var(--muted);margin:12px 4px 0;max-width:100%}.controller-help summary{cursor:pointer;color:var(--lime);font:10px var(--mono);padding:8px 0}.controller-help strong{color:var(--paper)}.controller-help a{text-decoration:underline}.controller-options{display:flex;flex-wrap:wrap;gap:8px}.controller-options button{background:#29352b;border:1px solid #637456;border-radius:4px;padding:10px 12px;font:10px var(--mono);color:var(--lime)}.controller-options button:disabled{opacity:.5;cursor:wait}#controller-setup-prompt{color:var(--lime)}
+@media(max-height:500px) and (orientation:landscape){.controller-help{display:none}}

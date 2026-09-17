@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');const profile=require('../web/controller-profile.js');
+const pad=(axes=[0,0],down=[])=>({id:'8BitDo SN30',mapping:'',axes,buttons:Array.from({length:12},(_,i)=>({pressed:down.includes(i)}))});
+let idle=pad(),base=profile.neutral(idle);
+const up=profile.capture(pad([0,-1]),base),right=profile.capture(pad([1,0]),base);
+assert(profile.matches(pad([1,-1]),up));assert(profile.matches(pad([1,-1]),right));assert(!profile.matches(pad([.1,.1]),right));
+assert.deepEqual(profile.capture(pad([0,0],[5]),base),{type:'button',index:5});assert(!profile.released(pad([0,0],[5]),base));
+idle=pad([0,0,3.285714]);base=profile.neutral(idle);
+const hatUp=profile.capture(pad([0,0,-1]),base),hatRight=profile.capture(pad([0,0,-3/7]),base);
+assert.equal(hatUp.type,'hat');
+for(const b of [hatUp,hatRight])assert(profile.matches(pad([0,0,-5/7]),b));
+assert(!profile.matches(idle,hatUp));assert(!profile.matches(pad([0,0,1/7]),hatUp));
+assert.equal(profile.valid(idle,{}),false);
+assert.notEqual(profile.deviceKey(idle),profile.deviceKey({...idle,mapping:'standard'}));
+console.log('PASS: learned buttons, digital axes, diagonal HID hat, dead zone, neutral, profile validation and per-mode identity');

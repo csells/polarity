@@ -5,6 +5,8 @@ const keyNames=['left','right','up','down','A','B','start','select'];
 const held=new Map();
 let core,emu,romPtr,audio,audioNext=0,muted=false,playing=false,paused=false,lastTime=0,raf,frames=0;
 let gain;
+let controllerDevice=null,controllerSetup=null,controllerProfiles={};
+try{const saved=JSON.parse(localStorage.getItem(ControllerProfile.storageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))controllerProfiles=saved;}catch(error){console.warn('Saved controller layouts unavailable:',error);}
 let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false;
 const keymap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyZ:'A',Space:'A',KeyX:'B',ShiftLeft:'B',ShiftRight:'B',Enter:'start',KeyR:'select'};
 function setKey(key,on,source='api'){
@@ -25,14 +27,14 @@ function audioBuffer(){
  const src=audio.createBufferSource();src.buffer=b;src.connect(gain);src.start(audioNext);audioNext+=1024/audio.sampleRate;
 }
 function advance(ticks,sound=true){const until=Math.floor(core._emulator_get_ticks_f64(emu)+ticks);let loops=0;while(core._emulator_get_ticks_f64(emu)<until){const ev=core._emulator_run_until_f64(emu,until);if(ev&1){frames++;}if((ev&2)&&sound)audioBuffer();if(ev&16)throw Error('Invalid opcode in cartridge');if(ev&4)break;if(++loops>10000)throw Error('Emulator failed to advance');}render();}
-function loop(now){raf=requestAnimationFrame(loop);pollGamepad();if(!playing||paused){lastTime=now;return;}const dt=lastTime?Math.min((now-lastTime)/1000,.05):0;lastTime=now;advance(dt*4194304);}
+function loop(now){raf=requestAnimationFrame(loop);pollGamepad();if(!playing||paused||controllerSetup){lastTime=now;return;}const dt=lastTime?Math.min((now-lastTime)/1000,.05):0;lastTime=now;advance(dt*4194304);}
 function pulse(key){setKey(key,true,'pulse');setTimeout(()=>setKey(key,false,'pulse'),100);}
 function updateSoundButton(){
  $('#sound').setAttribute('aria-pressed',String(muted));
  $('#sound span').textContent=muted?'SOUND OFF':audio&&audio.state!=='running'&&!paused?'ENABLE SOUND':'SOUND ON';
 }
 function start(){
- if(!emu||playing)return;
+ if(!emu||playing||controllerSetup)return;
  // Gamepad buttons do not always unlock browser audio. Never block play on resume().
  playing=true;$('#play').hidden=true;$('#loading').hidden=true;lastTime=0;pulse('start');
  try{
@@ -45,7 +47,7 @@ function start(){
 }
 function setPaused(value){if(!playing)return;paused=value;release();$('#pause').firstChild.textContent=value?'▶':'Ⅱ';$('#pause span').textContent=value?'RESUME':'PAUSE';$('#status').innerHTML=value?'Ⅱ PAUSED':'<i></i> NATIVE GBC · 160 × 144';if(audio){if(value)audio.suspend();else if(!muted)audio.resume().catch(console.error);}lastTime=0;}
 $('#play').addEventListener('click',start);
-window.addEventListener('keydown',e=>{const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
+window.addEventListener('keydown',e=>{const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat||controllerSetup)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
 window.addEventListener('keyup',e=>{const key=keymap[e.code];if(key){e.preventDefault();setKey(key,false,e.code);}});
 const pointers=new Map();
 function pointKey(x,y){const e=document.elementFromPoint(x,y);return e?.closest('[data-key]')?.dataset.key;}
@@ -82,6 +84,49 @@ window.addEventListener('blur',()=>{pageActive=false;release();setPaused(true);}
 window.addEventListener('focus',()=>{pageActive=!document.hidden;});
 document.addEventListener('visibilitychange',()=>{pageActive=!document.hidden&&document.hasFocus();if(document.hidden){release();setPaused(true);}});
 function controllerMessage(message){const el=$('#controller-status');if(el.textContent!==message)el.textContent=message;}
+function customProfile(p){const value=controllerProfiles[ControllerProfile.deviceKey(p)];return ControllerProfile.valid(p,value)?value:null;}
+function saveProfiles(){
+ try{localStorage.setItem(ControllerProfile.storageKey,JSON.stringify(controllerProfiles));return true;}
+ catch(error){console.warn('Could not save controller layout:',error);return false;}
+}
+const setupLabels=['UP','DOWN','LEFT','RIGHT','JUMP (SNES B)','DASH (SNES Y or A)','PAUSE (START)','RETRY (SELECT)'];
+function setupPrompt(message){$('#controller-setup-prompt').textContent=message;}
+function endControllerSetup(message){controllerSetup=null;$('#controller-cancel').hidden=true;$('#controller-configure').disabled=false;setupPrompt(message);controllerButtons=new Set();}
+$('#controller-configure').addEventListener('click',()=>{
+ if(!controllerDevice){setupPrompt('Connect your controller and press a button first.');return;}
+ setPaused(true);release();
+ controllerSetup={device:ControllerProfile.deviceKey(controllerDevice),base:ControllerProfile.neutral(controllerDevice),step:0,waiting:true,bindings:{}};
+ $('#controller-cancel').hidden=false;$('#controller-configure').disabled=true;
+ setupPrompt('Release all controls to begin.');
+});
+$('#controller-cancel').addEventListener('click',()=>endControllerSetup('Setup cancelled. Your previous layout is unchanged.'));
+$('#controller-reset').addEventListener('click',()=>{
+ if(!controllerDevice)return;
+ delete controllerProfiles[ControllerProfile.deviceKey(controllerDevice)];const saved=saveProfiles();
+ setPaused(true);release();endControllerSetup(saved?'Custom layout cleared.': 'Layout cleared for this visit; browser storage is unavailable.');
+});
+function learnController(p){
+ const setup=controllerSetup;
+ if(!pageActive)return;
+ if(setup.waiting){
+  if(!ControllerProfile.released(p,setup.base))return;
+  setup.base=ControllerProfile.neutral(p);setup.waiting=false;
+  if(setup.step===ControllerProfile.actions.length){
+   controllerProfiles[setup.device]=setup.bindings;const saved=saveProfiles();
+   endControllerSetup(saved?'Layout saved on this PC. Press START to play.':'Layout ready for this visit. Press START to play. Browser storage is unavailable.');return;
+  }
+  setupPrompt((setup.step+1)+'/8 — Press '+setupLabels[setup.step]);return;
+ }
+ const binding=ControllerProfile.capture(p,setup.base);if(!binding)return;
+ if(Object.values(setup.bindings).some(b=>JSON.stringify(b)===JSON.stringify(binding))){setupPrompt('That control is already assigned. Release it and choose another.');return;}
+ setup.bindings[ControllerProfile.actions[setup.step]]=binding;setup.step++;setup.waiting=true;setupPrompt('Release the control to continue.');
+}
+function readController(p,profile){
+ if(profile)return Object.fromEntries(ControllerProfile.actions.map(key=>[key,ControllerProfile.matches(p,profile[key])]));
+ if(p.mapping!=='standard')return null;
+ const pressed=i=>!!p.buttons[i]?.pressed,x=p.axes[0]||0,y=p.axes[1]||0;
+ return {left:pressed(14)||x<-.3,right:pressed(15)||x>.3,up:pressed(12)||y<-.3,down:pressed(13)||y>.3,A:pressed(0),B:pressed(1)||pressed(2),start:pressed(9),select:pressed(8)};
+}
 function pollGamepad(){
  if(gamepadBlocked)return;
  if(!navigator.getGamepads){controllerMessage('Controller input is unavailable in this browser.');return;}
@@ -89,31 +134,37 @@ function pollGamepad(){
  try{pads=Array.from(navigator.getGamepads()).filter(p=>p&&p.connected);}
  catch(error){gamepadBlocked=true;controllerMessage('Controller access is blocked by this browser.');console.warn('Gamepad access:',error);return;}
  // Browsers can leave holes in this array after devices are disconnected.
- const supported=pads.filter(p=>p.mapping==='standard');
+ const supported=pads.filter(p=>p.mapping==='standard'||customProfile(p));
  const identity=p=>p.index+':'+p.id;
- const controller=supported.find(p=>identity(p)===controllerId)||supported[0];
+ const controller=pads.find(p=>identity(p)===controllerId)||supported[0]||pads[0];
+ controllerDevice=controller||null;
  const nextId=controller?identity(controller):null;
  if(nextId!==controllerId){
   for(const key of ['left','right','up','down','A','B'])setKey(key,false,'gamepad');
   if(controllerId&&playing)setPaused(true);
   controllerId=nextId;controllerButtons=new Set();
+  if(controllerSetup)endControllerSetup('Controller changed or disconnected. Connect it and restart setup.');
  }
  if(!controller){
-  controllerMessage(pads.length?'Controller detected, but no standard mapping is available.':'Connect a controller, then press a button.');
+  controllerMessage('Connect a controller, then press a button.');
   return;
  }
- controllerMessage('Controller connected · Start / Options to pause');
- const buttons=new Set(controller.buttons.flatMap((button,i)=>button.pressed?[i]:[]));
- const pressed=i=>buttons.has(i)&&!controllerButtons.has(i);
+ if(controllerSetup&&ControllerProfile.deviceKey(controller)!==controllerSetup.device)endControllerSetup('Controller mode changed. Restart setup for this mode.');
+ if(controllerSetup){learnController(controller);return;}
+ const profile=customProfile(controller),keys=readController(controller,profile);
+ if(!keys){controllerMessage('Controller detected — choose Set up controller below.');return;}
+ const snes=/8bitdo|sn30|sf30|sfc30/i.test(controller.id);
+ controllerMessage(profile?'Controller connected · Custom layout ready':snes?'8BitDo connected · B: jump · Y / A: dash · START: pause':'Controller connected · Start / Options to pause');
+ const buttons=new Set(Object.keys(keys).filter(key=>keys[key]));
+ const pressed=key=>buttons.has(key)&&!controllerButtons.has(key);
  let transition=false;
  if(pageActive){
-  if(!playing&&(pressed(0)||pressed(9))){start();transition=true;}
-  else if(playing&&pressed(9)){setPaused(!paused);transition=true;}
-  else if(playing&&!paused&&pressed(8)){pulse('select');transition=true;}
+  if(!playing&&(pressed('A')||pressed('start'))){start();transition=true;}
+  else if(playing&&pressed('start')){setPaused(!paused);transition=true;}
+  else if(playing&&!paused&&pressed('select')){pulse('select');transition=true;}
  }
  controllerButtons=buttons;
- const x=controller.axes[0]||0,y=controller.axes[1]||0;
- const keys={left:buttons.has(14)||x<-.3,right:buttons.has(15)||x>.3,up:buttons.has(12)||y<-.3,down:buttons.has(13)||y>.3,A:buttons.has(0),B:buttons.has(1)||buttons.has(2)};
+ delete keys.start;delete keys.select;
  // Opposing D-pad / stick directions cancel, so a drifting stick cannot pick a side.
  if(keys.left&&keys.right)keys.left=keys.right=false;
  if(keys.up&&keys.down)keys.up=keys.down=false;

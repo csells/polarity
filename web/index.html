@@ -15,9 +15,16 @@
 </div>
 <div class="device-bottom"><button id="retry" class="mini">↻<span>RETRY</span></button><button id="pause" class="mini">Ⅱ<span>PAUSE</span></button><div class="speaker" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><button id="sound" class="mini" aria-pressed="false">♪<span>SOUND ON</span></button><button id="fullscreen" class="mini">⛶<span>EXPAND</span></button></div>
 </div>
-<div class="below-console"><span id="status"><i></i> NATIVE GBC · 160 × 144</span><a href="polarity.gbc" download>GET THE ROM ↓</a></div><p id="controller-status" class="controller-status" role="status">Connect a controller, then press a button.</p>
+<div class="below-console"><span id="status"><i></i> NATIVE GBC · 160 × 144</span><a href="polarity.gbc" download>GET THE ROM ↓</a></div><p id="controller-status" class="controller-status" role="status">Connect a controller, then press a button.</p><details class="controller-help"><summary>8BitDo / controller setup</summary>
+<p><strong>SNES layout:</strong> D-pad to move, bottom B to jump, Y or A to dash, START to pause, SELECT to retry.</p>
+<p>On Windows, use your controller’s Windows / X-input mode when available, connect by USB or Bluetooth, then press a button on this page. If the buttons do not match, teach the game your layout below.</p>
+<p>For the SN30 2.4G made for SNES Classic, connect the controller itself to the PC with a USB cable. Its bundled receiver is for the console.</p>
+<p>Let go of all buttons and sticks before starting setup. Your layout is saved in this browser for this controller and connection mode.</p>
+<div class="controller-options"><button id="controller-configure">Set up controller</button><button id="controller-cancel" hidden>Cancel</button><button id="controller-reset">Reset layout</button></div>
+<p id="controller-setup-prompt" role="status"></p>
+<p><a href="https://support.8bitdo.com/" target="_blank" rel="noreferrer">8BitDo model manuals ↗</a></p></details>
 </section>
 <section class="guide"><div class="guide-title"><span>FIELD MANUAL</span><span>01—03</span></div><div class="guide-item"><span class="number">01</span><div><h2>Keep your momentum.</h2><p>Hold jump for height. Press into a wall to slide, then jump to kick off. A little late? Coyote time has you.</p></div></div><div class="guide-item"><span class="number">02</span><div><h2>Change your charge.</h2><p>Dash in any direction to flip cyan ↔ amber. Pass through gates matching your charge. Land or touch a diamond to recharge.</p></div></div><div class="guide-item"><span class="number">03</span><div><h2>Find the next signal.</h2><p>Reach the glowing ring to advance. Every room is a checkpoint. Spikes hurt; retries are instant and unlimited.</p></div></div><div class="keyboard">KEYBOARD <span>Arrows / WASD <b>move</b></span><span>Z / Space <b>jump</b></span><span>X / Shift <b>dash</b></span><span>Enter <b>pause</b></span><span>R <b>retry</b></span></div><div class="keyboard">CONTROLLER <span>D-pad / left stick <b>move &amp; aim</b></span><span>A / Cross (bottom) <b>jump</b></span><span>B / Circle or X / Square <b>dash</b></span><span>Start / Options <b>pause</b></span><span>Back / View / Share <b>retry</b></span></div></section>
 </main><footer><span>BUILT FOR THE POCKET. PLAYED ANYWHERE.</span><span>Emulation by <a href="https://github.com/binji/binjgb" target="_blank" rel="noreferrer">binjgb ↗</a></span></footer>
-<script src="vendor/binjgb.js"></script><script src="app.js"></script>
+<script src="vendor/binjgb.js"></script><script src="controller-profile.js"></script><script src="app.js"></script>
 </body></html>

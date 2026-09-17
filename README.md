@@ -16,6 +16,10 @@ Run `python3 server.py`, then open port 8787. The web player includes multitouch
 
 Standard browser-mapped controllers (USB or Bluetooth): D-pad / left stick to move and aim; bottom face button (Xbox A / PlayStation Cross) to jump; right or left face button (B / Circle or X / Square) to dash; Start / Options to start, pause and resume; Back / View / Share to retry. Press a button after connecting so the browser detects it. If audio remains locked, tap **Enable Sound** once. Disconnecting the active controller pauses the game.
 
+For 8BitDo SN30/SF30-style layouts, bottom **B** jumps and **Y / A** dashes; **START** pauses and **SELECT** retries. Use Windows / X-input mode where supported. If the browser does not recognize the layout, open **8BitDo / controller setup** and teach its eight controls. This supports D-pads reported as buttons, digital axes, or HID hats and saves the layout per controller/mode in this browser. The SN30 2.4G model for SNES Classic must connect directly to a PC by USB; its console receiver is not a PC USB receiver. See [8BitDo SN30 support](https://support.8bitdo.com/faq/sn30.html) and [SN30 2.4G support](https://support.8bitdo.com/faq/sn30-2-4-g.html).
+
+`node tests/controller-profile.cjs` tests binding interpretation. `node tests/8bitdo.cjs` tests simulated raw controller reports through the real browser player, including calibration, diagonals, pause/retry, and persistence. These tests do not establish physical compatibility of every controller firmware or Windows driver.
+
 On hardware: D-pad to move, A to jump, B to dash, Start to pause, Select to retry.
 
 ## Build

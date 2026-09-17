@@ -94,3 +94,23 @@ regressions passed. Controller tests were repeated after the final background
 input guards; holding Start while returning cannot accidentally unpause.
 
 Browser discard semantics: [Chrome Page Lifecycle API](https://developer.chrome.com/docs/web-platform/page-lifecycle-api).
+
+## Emulator-freeze clarification
+
+Chris clarified that the browser remains running while the emulator freezes.
+Do not equate the earlier renderer-crash acceptance test with reproducing this
+symptom. Download the report before reloading when page controls still respond.
+
+Added an independent foreground frame-progress monitor: five seconds without
+progress during expected play records a suspected stall, preserves the preceding
+snapshot, and avoids native snapshot calls when downloading. Intentional pause,
+controller setup and background suspension are excluded. The monitor sleeps
+while unfocused/hidden. Reports include whether the player expected frames to
+advance. A synchronous native hang blocking the entire page, or game logic stuck
+while emulator frames continue, remains outside automatic detection.
+
+`node tests/browser-stall.cjs` failed before implementation (missing stall
+evidence), then passed with a deliberately stopped loop and no exception:
+normal pause excluded, stall persisted, download avoided reentering the core,
+and history survived reload. Existing diagnostic acceptance tests also passed.
+These are instrumentation checks; the family's specific freeze is still open.

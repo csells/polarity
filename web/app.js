@@ -266,7 +266,9 @@ function pollGamepad(){
  for(const [key,on]of Object.entries(keys))setKey(key,enabled&&on,'gamepad');
 }
 const diagnostics=new PolarityDiagnostics({
- status:()=>({frames,playing,paused,failed,emulatorOperation,frameRemainder,inputMask:desiredMask,queuedInputs:inputQueue.length,viewport:[innerWidth,innerHeight],
+ status:()=>({frames,playing,paused,failed,pageActive,controllerSetup:!!controllerSetup,
+  expectedToAdvance:!!emu&&playing&&!paused&&!failed&&!controllerSetup&&pageActive&&!document.hidden,
+  emulatorOperation,frameRemainder,inputMask:desiredMask,queuedInputs:inputQueue.length,viewport:[innerWidth,innerHeight],
   wasmBytes:core?.HEAPU8?.length||0,jsHeapBytes:performance.memory?.usedJSHeapSize||null,
   audioState:audio?.state||'not-created',audioTime:audio?.currentTime||0,queuedAudio:audioSources.size,
   controller:controllerDevice?{mapping:controllerDevice.mapping,buttons:controllerDevice.buttons.length,axes:controllerDevice.axes.length}:null}),

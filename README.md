@@ -44,8 +44,10 @@ The original Color release is tagged **`gameboy-color`** at `2ed40f6b44584ca54b2
 
 ## Crash reports
 
-If the game freezes or the tab closes, reopen the game, expand **Crash reports**
-below the console, and choose **Download crash report**. Share the resulting
+If the emulator freezes but the page controls still respond, expand **Crash
+reports** below the console and choose **Download crash report** before reloading.
+If the page cannot respond or closes, reopen it and download the retained report.
+Share the resulting
 `polarity-crash-report-*.json` file. The same download is available on the error
 recovery panel. No report is uploaded automatically.
 
@@ -59,6 +61,14 @@ an in-page error stack; the report retains the preceding snapshot and events.
 Storage restrictions are shown explicitly; a live download still works if local
 storage is full. Reports contain game state and device/browser details, not
 unrelated local storage, cookies, or browsing history.
+
+A separate foreground monitor records when emulator frames stop advancing for
+five seconds while play is expected. Normal pauses and background suspension do
+not count as stalls. A suspected stall preserves the last healthy snapshot and
+does not query the core during download. This monitor cannot execute while a
+synchronous native call blocks the page, or detect every game-logic freeze when
+the emulator itself continues producing frames; the retained snapshot helps
+investigate those cases.
 
 The player stops emulation and input polling when inactive and stays paused when
 you return. Held controller buttons are resynchronized before accepting new

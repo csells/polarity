@@ -4,6 +4,7 @@ class PolarityDiagnostics {
  constructor({status,capture}){
   this.key='polarity-diagnostics-v1';this.status=status;this.capture=capture;
   this.cached=[];this.storageError=null;this.lastSample=0;this.lastSnapshot=0;
+  this.progress=null;this.stallActive=false;this.watchTimer=null;
   this.current={schema:1,id:crypto.randomUUID(),startedAt:new Date().toISOString(),
    environment:{browser:navigator.userAgent,platform:navigator.platform,touchPoints:navigator.maxTouchPoints,
     hardwareConcurrency:navigator.hardwareConcurrency,deviceMemoryGiB:navigator.deviceMemory||null,
@@ -31,6 +32,36 @@ class PolarityDiagnostics {
   }
   document.querySelector('#download-diagnostics').addEventListener('click',()=>this.download());
   document.querySelector('#download-crash').addEventListener('click',()=>this.download());
+  // Independent of the emulation loop, so a lost loop timer is observable.
+  // A synchronous hang blocking the whole page still requires reopening it.
+  for(const name of ['blur','focus','pagehide','pageshow'])window.addEventListener(name,()=>this.watch());
+  document.addEventListener('visibilitychange',()=>this.watch());
+  document.addEventListener('freeze',()=>{clearTimeout(this.watchTimer);this.progress=null;});
+  document.addEventListener('resume',()=>this.watch());
+  this.watch();
+ }
+ watch(){
+  clearTimeout(this.watchTimer);this.progress=null;
+  if(document.hidden||!document.hasFocus())return;
+  const check=()=>{
+   if(document.hidden||!document.hasFocus())return;
+   this.checkProgress(performance.now());this.watchTimer=setTimeout(check,1000);
+  };
+  this.watchTimer=setTimeout(check,1000);
+ }
+ checkProgress(now){
+  const status=this.status();
+  if(!status.expectedToAdvance){this.progress=null;return;}
+  if(!this.progress||this.progress.frames!==status.frames){
+   this.progress={frames:status.frames,since:now};
+   if(this.stallActive&&status.frames!==this.current.stall.frames){this.stallActive=false;this.current.stall.resumedAt=new Date().toISOString();this.event('frame-progress-resumed');this.persist();}
+   return;
+  }
+  const durationMs=Math.round(now-this.progress.since);
+  if(durationMs<5000||this.stallActive)return;
+  this.stallActive=true;
+  this.current.stall={time:new Date().toISOString(),type:'frame-progress-stopped',durationMs,frames:status.frames};
+  this.event('frame-progress-stopped',{durationMs});this.persist();
  }
  static base64(bytes){let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(s);}
  read(){
@@ -51,7 +82,7 @@ class PolarityDiagnostics {
   const others=this.read().filter(s=>s.id!==this.current.id);
   // Keep the latest failure across ordinary subsequent reloads, plus one recent
   // session in case the renderer was killed without delivering an error event.
-  const failure=others.find(s=>s.error),recent=others.filter(s=>s!==failure);
+  const failure=others.find(s=>s.error||s.stall),recent=others.filter(s=>s!==failure);
   return [this.current,...(failure?[failure]:[]),...recent].slice(0,3);
  }
  persist(){
@@ -61,13 +92,14 @@ class PolarityDiagnostics {
   const previous=this.cached.find(s=>s.id!==this.current.id);
   document.querySelector('#diagnostics-status').textContent=this.storageError?
    'Reports cannot be saved in this browser. Download one before reloading.':
+   this.stallActive?'The game stopped advancing. Download a report before reloading.':
    previous?'A report from your previous visit is available, including its last recorded game state.':
    'Recording locally. Download a report if the game freezes or closes.';
  }
  checkpoint(type,detail={}){
   this.event(type,detail);
   // Never enter the core after a fatal error; retain its last known healthy state.
-  if(!this.current.error){
+  if(!this.current.error&&!this.stallActive){
    try{
     const snapshot=this.capture();
     if(snapshot){

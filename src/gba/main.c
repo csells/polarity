@@ -4,6 +4,7 @@
 #include "city.h"
 #include "story.h"
 #include <string.h>
+extern const char *const missions[6][2];
 /* Retained by the linker: emulators and flash carts identify battery SRAM. */
 const char save_type[] __attribute__((used))="SRAM_V113";
 State player;City city;
@@ -66,9 +67,9 @@ static void briefing(void){clear_ui();game_mode=5;region_art(selected);
   text(13+i*5,10,i==room_id%3?"+":".",i==room_id%3?10:8);
   if(city_has_letter(&city,selected*3+i))sprite(2+i,98+i*40,68,FX_TILE+5*4,9,1,0);
  }
- panel(12,8);center(12,names[room_id]);center(14,instructions[selected]);
- center(16,city_has_letter(&city,room_id)?"SELECT: READ YOUR LETTER":"FIND THE LETTER OFF THE PATH");
- center(18,"LEFT / RIGHT ROUTE   A GO");center(19,"B CITY MAP");
+ panel(12,8);center(12,names[room_id]);
+ center(14,missions[selected][0]);center(15,missions[selected][1]);center(16,instructions[selected]);
+ center(18,"LEFT / RIGHT ROUTE   A GO");center(19,city_has_letter(&city,room_id)?"B MAP   SELECT READ LETTER":"B MAP   LETTERS ARE OPTIONAL");
 }
 static void letter_screen(void){clear_ui();game_mode=9;panel(2,16);center(3,"L O S T   A N D   F O U N D");sprite(0,112,42,FX_TILE+5*4,9,1,0);for(unsigned i=0;i<3;i++)center(9+i*2,letters[room_id][i]);center(17,"A / B BACK");}
 /* Physics stays in the validated logical units. The presentation uses two
@@ -147,7 +148,8 @@ static HOT void room_render(void){
   objects[24+i].a|=0x0400;objects[24+i].c|=1<<10;
  }
  for(unsigned i=0;i<enemy_count;i++)if(!(player.defeated&(1u<<i))){
-  sprite(2+i,enemy_x(i,player.clock)*2-(int)camera-1,enemies[i].y*2-(int)camera_y,FX_TILE+6*4,10,1,0);
+  unsigned kind=region==2?1:region>=3?2:0,walk=(player.clock/8+i)%4;
+  sprite(2+i,enemy_x(i,player.clock)*2-(int)camera-8,enemies[i].y*2-(int)camera_y-8,ENEMY_TILE+(kind*4+walk)*16,14,2,((player.clock+i*31)&63)>=32);
  }
  sprite(12,(ROOM_W-4)*16-4-(int)camera,240-(int)camera_y,NPC_TILE+region*16,2+region,2,0);
  // The waiting neighbor waves their signal lantern when the route is live.

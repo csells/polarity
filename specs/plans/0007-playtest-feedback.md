@@ -1,0 +1,53 @@
+# Family playtest follow-up
+
+Preserve the validated movement tuning and the idle camera fix. Keep Color and
+Advance saves separate; preserve existing Advance progress.
+
+- [x] Investigate multi-minute emulator crashes using real-time browser playback,
+  audio/save allocation measurements, and native cartridge endurance checks.
+  Reproduce before attributing a cause; retain any unresolved device-specific gap.
+- [x] Make later routes harder through authored obstacles and combinations;
+  keep the first delivery safe and checkpoints usable.
+- [x] Give sentries detailed animated silhouettes that match their hitboxes.
+- [x] Replace the dash's harsh buzz with a short, layered electrical whoosh.
+- [x] Write clear Advance-specific setup, objectives, radio and delivery dialogue
+  that explain the storm, the courier's task and the consequences of each repair.
+- [x] Verify changed routes in the native emulator, audio, browser controls,
+  save preservation, idle rendering and unchanged movement fingerprint.
+- [ ] Publish and verify the public release.
+
+## Evidence
+
+Pending crash report details: device/browser and freeze/reload/error behavior.
+- Original player: ten real-time minutes in Chrome and ten in WebKit without
+  a crash; twenty accelerated native minutes without a cartridge freeze. WASM
+  memory stayed at 64 MiB. These runs do not disprove the reported crash.
+- A stalled device-audio-clock fixture retained 1,200 native sound sources after
+  twenty emulated seconds. The updated player caps the queue at twelve, detaches
+  finished sources, and clears pending audio on pause/mute. The regression failed
+  before the change and passes afterward. This is a reproduced resource-growth
+  failure, not a confirmed attribution of the family's crash.
+- Injecting an emulator exception previously left a frozen player and repeated
+  timer exceptions. The recovery regression now verifies a stopped timer,
+  copyable report and reload with the same saved checkpoint, even if the failed
+  core no longer accepts key updates. Reports stay local in `polarity-last-error`.
+- Actual-cartridge replay completes all eighteen revised rooms and letters with
+  no deaths or frame overruns. All checkpoint positions remain safe, the first
+  delivery remains hazard-free, and the movement fingerprint remains `ee887670`.
+- Browser timing: 59.5 fps with animation callbacks throttled to 5 Hz. Phone touch,
+  standard controllers, raw 8BitDo axes/hats, pause, save/reload and independent
+  Color storage passed. The Color ROM hash is unchanged.
+- Native audio: six distinct stereo scores, no clipping, loop-boundary playback;
+  the isolated new dash peaks at 9,216/32,767 and ends after 102 ms. Preview WAVs
+  now use the emulator's actual output rate.
+- Reviewed native screenshots of the briefing, first delivery and new sentry;
+  new dialogue is checked against the 30-column display at generation time.
+
+## Still open
+
+- [ ] Identify the specific crash reported by Chris and Donna. Device/browser,
+  freeze versus tab-reload behavior, and any new error report are pending.
+  Keep this plan active rather than describing the crash as conclusively fixed.
+- [x] Updated player: ten real-time minutes in Chrome (35,857 frames), no errors,
+  64 MiB WASM, about 4–8 MiB JS heap, one to three pending sound sources; two
+  real-time minutes in WebKit with active audio and a bounded queue.

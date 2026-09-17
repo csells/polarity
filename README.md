@@ -4,7 +4,7 @@
 
 An original precision platformer running as a **native Game Boy Advance cartridge** in mGBA WebAssembly. Every dash flips cyan ↔ amber. Cyan carries signal; amber carries power. Reconnect six neighborhoods in Lumen, meet the people waiting for your deliveries, and bring their city home.
 
-The Advance edition is composed for a 240 × 160 screen: 32px animated courier sprites, 16px terrain, a two-axis camera, seven original 128-color scene paintings, an illustrated city atlas, 64px resident portraits, restoration lighting, and six original 32-second stereo soundtrack arrangements. The jump, dash, wall-jump, buffering and precision tuning remain exactly as family-tested. The first delivery teaches the basics through safe play.
+The Advance edition is composed for a 240 × 160 screen: 32px animated courier sprites, 16px terrain, a two-axis camera, seven original 128-color scene paintings, an illustrated city atlas, 64px resident portraits, restoration lighting, and six original 32-second stereo soundtrack arrangements. The jump, dash, wall-jump, buffering and precision tuning remain exactly as family-tested. The first delivery teaches the basics through safe play. Later routes add guarded gantries, thorn-floor rope crossings, spring and wind charge gates, and timed reactor crossings. Sentries have three detailed animated designs, and Advance dialogue explains each neighbor's repair request in full sentences.
 
 Eighteen Advance routes are 1,472 screen pixels wide and contain three checkpoint plazas each, two charge sockets, and an optional lost letter. Matching charge activates a socket, restores its bridges, and brings the delivery beacon closer to life. Both links open the exit. Checkpoints and links survive retries. Finish three deliveries to restore a neighborhood; the branching map brings the routes back together at Storm Heart.
 
@@ -60,7 +60,7 @@ To rebuild the Advance cartridge, install the pinned relocatable [xPack ARM tool
 
 The installer verifies the release SHA-256 checksum. Alternatively set `ARM_CC` and `ARM_OBJCOPY` to an existing ARM bare-metal GCC toolchain. Python 3 is the only normal build dependency for assets. Original image-generated artwork is checked in under `assets/gba/source/`; the checked-in packed palettes and tiles make normal builds independent of image tools. To reprocess the artwork, install Pillow 12.3.0 and run `python3 tools/prepare_gba_art.py`. Terrain and original PCM scores are generated from authored Python sources. Generated C/PCM files and the compiler are ignored by Git. The ROM is approximately 6.7 MB and uses 32 KiB SRAM.
 
-The renderer uses GBA mode 0: an 8bpp painted backdrop, 4bpp architectural and collision layers, a HUD, and hardware sprites. It budgets 16 KiB for terrain/UI, 40 KiB for scene tiles, 8 KiB for screen maps, and a separate 32 KiB for OBJ art. DMA3 uploads maps/OAM at VBlank. DMA1 and DMA2 stream left/right 16,384 Hz PCM through Direct Sound A/B; timer interrupts reset both channels together at the 32-second loop. Swept PSG tones, noise and short arpeggios provide responsive effects. Hot rendering and physics functions execute from fast internal RAM; HUD updates clear only the rows they use. Simulation advances once per native 59.73 Hz frame, with a native overrun counter checked by cartridge replays. The browser clock runs independently of animation callbacks, with frame-aligned input events so quick taps survive delayed browser scheduling. The ARM startup sets stacks, copies fast code into internal RAM and initializes data/BSS; the build writes and validates the cartridge header.
+The renderer uses GBA mode 0: an 8bpp painted backdrop, 4bpp architectural and collision layers, a HUD, and hardware sprites. It budgets 16 KiB for terrain/UI, 40 KiB for scene tiles, 8 KiB for screen maps, and a separate 32 KiB for OBJ art. DMA3 uploads maps/OAM at VBlank. DMA1 and DMA2 stream left/right 16,384 Hz PCM through Direct Sound A/B; timer interrupts reset both channels together at the 32-second loop. Swept PSG tones, noise and short arpeggios provide responsive effects. Hot rendering and physics functions execute from fast internal RAM; HUD updates clear only the rows they use. Browser audio explicitly releases finished sources and caps the pending queue at twelve sources, even if a device audio clock stalls. Pausing clears that queue. Runtime failures stop the loop and show a reload button and copyable error report; the last report stays locally in `polarity-last-error`. A reusable frame image avoids per-frame canvas allocations. Simulation advances once per native 59.73 Hz frame, with a native overrun counter checked by cartridge replays. The browser clock runs independently of animation callbacks, with frame-aligned input events so quick taps survive delayed browser scheduling. The ARM startup sets stacks, copies fast code into internal RAM and initializes data/BSS; the build writes and validates the cartridge header.
 
 `npm ci` installs browser test dependencies and the pinned mGBA package; `npm run build` packages the static player, both cartridges and the existing hosting worker into `dist/`.
 
@@ -80,6 +80,7 @@ node tests/gba-entry.cjs
 node tests/gba-idle.cjs
 node tests/gba-replay.cjs
 node tests/gba-audio.cjs
+node tests/gba-effects.cjs
 ```
 
 The replay operates the same vendored mGBA core as the web player. It checks all eighteen letters and routes, branching unlocks, resident deliveries, restoration scenes, the ending, replay selection, SRAM reload, rejection of Color saves, and one physics update per frame. Audio checks cover six distinct arrangements, clipping and playback across a complete DMA loop. Screenshots and a soundtrack sample are written to ignored `artifacts/`.
@@ -99,6 +100,9 @@ The golden movement fingerprint is **`ee887670`**, covering 1,440 frames of move
 Browser tests require Google Chrome and `npm ci`. Start `python3 -m http.server 8790 --directory web` in another terminal, then:
 
 ```sh
+POLARITY_URL=http://localhost:8790 node tests/browser-audio.cjs
+POLARITY_URL=http://localhost:8790 node tests/browser-recovery.cjs
+POLARITY_URL=http://localhost:8790 node tests/gba-soak.cjs # ten minutes of real-time playback
 POLARITY_URL=http://localhost:8790 node tests/gba-timing.cjs
 POLARITY_URL=http://localhost:8790 node tests/gba-browser.cjs
 POLARITY_URL=http://localhost:8790 node tests/controller.cjs
@@ -108,13 +112,16 @@ POLARITY_URL=http://localhost:8790 node tests/touch.cjs
 
 On a busy Mac, prefix a browser test with `taskpolicy -a env` before its `POLARITY_URL=...` assignment to use application scheduling. Background scheduling can otherwise dominate frame-rate measurements. The timing assertion remains unchanged.
 
+Set `SOAK_BROWSER=webkit` to run the endurance check in an installed Playwright WebKit browser. The audio resource test deliberately stalls the output clock, and the recovery test injects an emulator exception; neither proves the cause of a particular device crash.
+
 These exercise actual browser emulation, isolated saves/reload, shoulder controls, the Color archive, simulated standard and raw 8BitDo reports, touch diagonals, pause/mute, focus/disconnection handling, and phone layouts. Physical controller firmware and real GBA hardware have not been tested here. Older `replay.cjs`, `restoration.cjs` and `save-and-map.cjs` target the archived Color build and its symbol file.
 
 ## Source and credits
 
 - `src/engine.c`, `src/city.c`: portable movement and progression
 - `src/gba/`: native ARM startup, hardware renderer, game flow and audio
-- `tools/rooms.py`, `tools/gba_rooms.py`, `tools/story.py`: authored routes, Advance compositions, residents and letters
+- `tools/rooms.py`, `tools/gba_rooms.py`: authored routes and Advance challenge progression
+- `tools/story.py`, `tools/gba_story.py`: separate Color and Advance dialogue, residents and letters
 - `tools/prepare_gba_art.py`, `tools/gba_assets.py`: artwork conversion, hardware palettes, metatiles and sprite packing
 - `tools/gba_music.py`: original stereo score synthesis
 - `web/app.js`: mGBA adapter, controls, audio and independent Advance saves

@@ -152,6 +152,45 @@ for f in range(12):
  else:line(g,4,8,9,7,3)
  fx.append(g)
 obj+=sum((tiles(g) for g in fx),[])
+enemy_start=len(obj)//32
+# 32px sentry animation, with the solid torso centered on its 16px hurtbox.
+# Three working machines: riveted foundry walker, leaf-clad garden scout,
+# and a winged high-altitude courier drone. Four articulated walking poses.
+enemy_palette=pal(['000000','111a2c','26364b','42566a','6f8690','b8c8bb',
+ '563740','925246','c17d50','ecc68b','3e797b','6dc9bd','d8fff0','d95350','ffae68','fff1ce'])
+for kind in range(3):
+ for frame in range(4):
+  g=canvas(32,32);stride=(0,2,0,-2)[frame]
+  # Jointed pistons and broad boots remain readable at native resolution.
+  for x,d in ((10,stride),(20,-stride)):
+   rect(g,x,21,3,4,1);rect(g,x+1,21,1,3,5)
+   rect(g,x+d-2,25,6,3,1);rect(g,x+d-1,25,4,1,8);rect(g,x+d-2,27,6,1,2)
+  rect(g,7,8,18,15,1);rect(g,8,9,16,12,6)
+  rect(g,9,8,14,3,8);rect(g,10,7,12,1,9)
+  rect(g,8,11,3,9,7);rect(g,21,11,3,9,7)
+  rect(g,11,12,10,8,2);rect(g,12,13,8,6,3)
+  # Lens, metal rim, warm malfunction lamp; no confusing charge-gate colors.
+  rect(g,10,9,12,5,1);rect(g,11,10,10,3,4)
+  rect(g,12,10,8,2,13);rect(g,13,10,5,1,14);rect(g,14,10,2,1,15)
+  for y in (15,17):rect(g,13,y,6,1,1);rect(g,13,y+1,6,1,4)
+  for x in (9,22):
+   for y in (9,19):rect(g,x,y,1,1,15)
+  rect(g,10,21,12,2,2);rect(g,11,21,10,1,8)
+  for x in (5,25):
+   rect(g,x,13,2,7,1);rect(g,x,13,2,2,8);rect(g,x,17,2,2,4)
+  line(g,16,7,16,3,1);rect(g,15,2,3,2,14 if frame%2 else 9)
+  if kind==1:
+   # The garden's old maintenance scouts have sprouted leaves.
+   line(g,8,8,5,5,10);line(g,5,5,3,6,11);line(g,8,8,7,3,10)
+   rect(g,6,3,3,2,11);rect(g,8,8,5,2,10);rect(g,9,8,3,1,11)
+   rect(g,21,19,3,3,10);rect(g,22,18,2,2,11)
+  elif kind==2:
+   # Fin-like shoulder vanes and a blue steel casing distinguish upper districts.
+   for x in (3,26):
+    rect(g,x,9+frame%2,3,7,1);rect(g,x,10+frame%2,2,4,4)
+    rect(g,x,10+frame%2,1,3,5)
+   rect(g,8,14,2,5,3);rect(g,22,14,2,5,3)
+  obj+=tiles(g)
 objpal=readpal('courier')+readpal('courier-amber')
 for bank in range(2):
  for i in range(1,16):
@@ -160,6 +199,7 @@ for bank in range(2):
   objpal[bank*16+i]=r|(g<<5)|(b<<10)
 for i in range(6):objpal+=readpal(f'neighbor-{i}')
 objpal+=sum(utility,[])+ui+pal(['000000','778594','233345','45566a','617588'])
+objpal+=enemy_palette
 objpal += [0]*(256-len(objpal));assert len(obj)<=32768
 out=['#include <stdint.h>']
 def arr(name,data,typ='uint8_t'):out.append(f'const {typ} {name}[{len(data)}]={{'+','.join(map(str,data))+'};')
@@ -179,5 +219,5 @@ for i in range(7):
  assert len(p)==256;arr(f'palette_{i}',p,'uint16_t')
 out+=['const uint8_t *const terrain_data[6]={'+','.join(f'terrain_{i}' for i in range(6))+'};','const uint8_t *const backgrounds[7]={'+','.join(f'background_{i}' for i in range(7))+'};','const uint16_t *const region_palettes[7]={'+','.join(f'palette_{i}' for i in range(7))+'};']
 (root/'assets.c').write_text('\n'.join(out)+'\n')
-(root/'assets.h').write_text('#include <stdint.h>\nextern const uint8_t *const backgrounds[7];\nextern const uint16_t *const region_palettes[7];\nextern const uint8_t *const terrain_data[6];\nextern const uint8_t sprite_data['+str(len(obj))+'];\nextern const uint16_t sprite_palette[256];\n#define BACKGROUND_BYTES 40960\n#define NPC_TILE '+str(npc_start)+'\n#define PORTRAIT_TILE '+str(portrait_start)+'\n#define FX_TILE '+str(fx_start)+'\n'+''.join(f'#define T_{name} {idx}\n' for name,idx in ids.items()))
+(root/'assets.h').write_text('#include <stdint.h>\nextern const uint8_t *const backgrounds[7];\nextern const uint16_t *const region_palettes[7];\nextern const uint8_t *const terrain_data[6];\nextern const uint8_t sprite_data['+str(len(obj))+'];\nextern const uint16_t sprite_palette[256];\n#define BACKGROUND_BYTES 40960\n#define NPC_TILE '+str(npc_start)+'\n#define PORTRAIT_TILE '+str(portrait_start)+'\n#define FX_TILE '+str(fx_start)+'\n#define ENEMY_TILE '+str(enemy_start)+'\n'+''.join(f'#define T_{name} {idx}\n' for name,idx in ids.items()))
 print(f'Art built: seven 128-color scenes, {len(meta)} metatiles, 16 courier poses, six residents and portraits; OBJ {len(obj)}/32768 bytes',flush=True)

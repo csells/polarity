@@ -17,7 +17,21 @@ function snapshot(){core._mgbawasm_state_save(statePtr);return core.HEAPU8.slice
 function memoryOffset(addr){if(addr>=0x02000000&&addr<0x02040000)return 0x21000+addr-0x02000000;if(addr>=0x03000000&&addr<0x03008000)return 0x19000+addr-0x03000000;throw Error('Unsupported debug address');}
 const held=new Map(),pulses=new Map();
 let core,emu,romPtr,audio,audioNext=0,muted=false,playing=false,paused=false,lastTime=0,clockTimer,frames=0;
-let gain;
+let gain,frameImage,frameMemory,framePointer,failed=false;
+const audioSources=new Set(),maxAudioSources=12;
+function clearAudioQueue(){
+ for(const src of audioSources){src.onended=null;src.stop();src.disconnect();}
+ audioSources.clear();audioNext=0;
+}
+function failGame(error){
+ if(failed)return;failed=true;paused=true;clearTimeout(clockTimer);
+ console.error('Polarity stopped:',error);release();cartridgeSave();
+ clearAudioQueue();if(audio)audio.suspend().catch(console.error);
+ const report=JSON.stringify({time:new Date().toISOString(),message:String(error?.message||error),stack:String(error?.stack||'').slice(0,1600),frames,wasmBytes:core?.HEAPU8?.length,audioState:audio?.state,browser:navigator.userAgent,screen:[innerWidth,innerHeight]},null,2);
+ $('#error-report').textContent=report;
+ try{localStorage.setItem('polarity-last-error',report);}catch(storageError){console.warn('Error report could not be stored:',storageError);}
+ $('#recovery').hidden=false;$('#status').textContent='GAME STOPPED';$('#reload-game').focus();
+}
 let controllerDevice=null,controllerSetup=null,controllerProfiles={};
 try{const saved=JSON.parse(localStorage.getItem(ControllerProfile.storageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))controllerProfiles=saved;}catch(error){console.warn('Saved controller layouts unavailable:',error);}
 let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false,controllerStartHeld=false;
@@ -45,14 +59,18 @@ function openMap(){if(!playing||controllerSetup)return;setPaused(false);pulse('L
 window.addEventListener('pagehide',()=>cartridgeSave());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cartridgeSave();});
 function setKey(key,on,source='api'){
- if(!emu)return;
+ if(!emu||failed)return;
  if(!held.has(key))held.set(key,new Set());
  const set=held.get(key);if(on)set.add(source);else set.delete(source);
  updateKeys();
  document.querySelectorAll(`[data-key="${key}"]`).forEach(b=>b.classList.toggle('active',set.size>0));
 }
-function release(){pulses.clear();for(const key of keyNames)held.set(key,new Set());desiredMask=queuedMask=0;inputQueue.length=0;inputQueue.push(0);if(emu)core._mgbawasm_set_keys(0);document.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));}
-function render(){const ptr=core._mgbawasm_video_ptr();ctx.putImageData(new ImageData(new Uint8ClampedArray(core.HEAPU8.buffer,ptr,240*160*4),240,160),0,0);}
+function release(){pulses.clear();for(const key of keyNames)held.set(key,new Set());desiredMask=queuedMask=0;inputQueue.length=0;inputQueue.push(0);if(emu&&!failed)core._mgbawasm_set_keys(0);document.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));}
+function render(){
+ const ptr=core._mgbawasm_video_ptr(),memory=core.HEAPU8.buffer;
+ if(memory!==frameMemory||ptr!==framePointer){frameMemory=memory;framePointer=ptr;frameImage=new ImageData(new Uint8ClampedArray(memory,ptr,240*160*4),240,160);}
+ ctx.putImageData(frameImage,0,0);
+}
 function audioBuffer(sound=true){
  let count;while((count=core._mgbawasm_read_audio(audioPtr,2048))>0){
   if(!sound||!audio||audio.state!=='running'||muted)continue;
@@ -60,7 +78,12 @@ function audioBuffer(sound=true){
   const data=core.HEAP16.subarray(audioPtr/2,audioPtr/2+count*2),rate=core._mgbawasm_sample_rate();
   const b=audio.createBuffer(2,count,rate);
   for(let c=0;c<2;c++){const out=b.getChannelData(c);for(let i=0;i<count;i++)out[i]=data[i*2+c]/32768;}
-  const src=audio.createBufferSource();src.buffer=b;src.connect(gain);src.start(audioNext);audioNext+=count/rate;
+  // Some output devices stall before AudioContext reports suspension. Bound
+  // pending sources even then, and explicitly detach completed native nodes.
+  while(audioSources.size>=maxAudioSources){const old=audioSources.values().next().value;old.onended=null;old.stop();old.disconnect();audioSources.delete(old);}
+  const src=audio.createBufferSource();src.buffer=b;src.connect(gain);
+  src.onended=()=>{src.disconnect();audioSources.delete(src);};
+  src.start(audioNext);audioSources.add(src);audioNext+=count/rate;
  }
 }
 function advance(ticks,sound=true){
@@ -74,7 +97,15 @@ function advance(ticks,sound=true){
 }
 // Advance simulation independently of throttled/occluded animation callbacks.
 // Hidden pages pause explicitly; a visible page retains native input cadence.
-function loop(now){clockTimer=setTimeout(()=>loop(performance.now()),8);pollGamepad();if(!playing||paused||controllerSetup){lastTime=now;return;}const dt=lastTime?Math.min((now-lastTime)/1000,.1):0;lastTime=now;advance(dt*4194304);if(now-saveTime>1000){saveTime=now;cartridgeSave();}}
+function loop(now){
+ if(failed)return;
+ try{
+  pollGamepad();
+  if(!playing||paused||controllerSetup)lastTime=now;
+  else{const dt=lastTime?Math.min((now-lastTime)/1000,.1):0;lastTime=now;advance(dt*4194304);if(now-saveTime>1000){saveTime=now;cartridgeSave();}}
+  clockTimer=setTimeout(()=>loop(performance.now()),8);
+ }catch(error){failGame(error);}
+}
 function pulse(key){setKey(key,true,'pulse');pulses.set(key,emulatedTicks+280896);}
 function updateSoundButton(){
  $('#sound').setAttribute('aria-pressed',String(muted));
@@ -92,9 +123,11 @@ function start(){
   updateSoundButton();
  }catch(error){console.warn('Sound unavailable:',error);$('#sound span').textContent='NO AUDIO';}
 }
-function setPaused(value){if(!playing)return;paused=value;release();$('#pause').firstChild.textContent=value?'▶':'Ⅱ';$('#pause span').textContent=value?'RESUME':'PAUSE';$('#status').innerHTML=value?'Ⅱ PAUSED':'<i></i> NATIVE GBA · 240 × 160';if(audio){if(value)audio.suspend();else if(!muted)audio.resume().catch(console.error);}lastTime=0;}
+function setPaused(value){if(!playing||failed)return;paused=value;release();clearAudioQueue();$('#pause').firstChild.textContent=value?'▶':'Ⅱ';$('#pause span').textContent=value?'RESUME':'PAUSE';$('#status').innerHTML=value?'Ⅱ PAUSED':'<i></i> NATIVE GBA · 240 × 160';if(audio){if(value)audio.suspend().catch(console.error);else if(!muted)audio.resume().catch(console.error);}lastTime=0;}
+$('#reload-game').addEventListener('click',()=>location.reload());
+$('#copy-error').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#error-report').textContent);$('#copy-error').textContent='Report copied';}catch(error){$('#error-details').open=true;$('#copy-error').textContent='Select and copy the report below';}});
 $('#play').addEventListener('click',start);
-window.addEventListener('keydown',e=>{if(e.code==='KeyM'){e.preventDefault();if(!e.repeat)openMap();return;}const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat||controllerSetup)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
+window.addEventListener('keydown',e=>{if(failed)return;if(e.code==='KeyM'){e.preventDefault();if(!e.repeat)openMap();return;}const key=keymap[e.code];if(!key)return;e.preventDefault();if(e.repeat||controllerSetup)return;if(!playing){start();return;}if(key==='start'){setPaused(!paused);return;}if(!paused)setKey(key,true,e.code);});
 window.addEventListener('keyup',e=>{const key=keymap[e.code];if(key){e.preventDefault();setKey(key,false,e.code);}});
 const pointers=new Map();
 function pointKey(x,y){const e=document.elementFromPoint(x,y);return e?.closest('[data-key]')?.dataset.key;}
@@ -124,7 +157,7 @@ $('#pause').addEventListener('click',()=>setPaused(!paused));
 $('#retry').addEventListener('click',()=>{if(playing){setPaused(false);pulse('select');}});
 $('#sound').addEventListener('click',()=>{
  if(audio&&audio.state!=='running'&&!muted&&!paused){audio.resume().then(updateSoundButton).catch(console.error);return;}
- muted=!muted;if(gain)gain.gain.value=muted?0:.65;
+ muted=!muted;clearAudioQueue();if(gain)gain.gain.value=muted?0:.65;
  if(audio&&!muted&&!paused)audio.resume().catch(console.error);
  updateSoundButton();
 });

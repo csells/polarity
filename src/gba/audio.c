@@ -1,7 +1,7 @@
 #include "hardware.h"
 #include "engine.h"
 extern const signed char *const music_left[6],*const music_right[6];
-static unsigned region=99,block=0,chime,chime_tick;
+static unsigned region=99,block=0,chime,chime_tick,dash_tick;
 static void stream(void){
  REG16(0x102)=0;REG16(0x106)=0;REG32(0xc4)=0;REG32(0xd0)=0;
  REG16(0x82)=0x9a0e; /* A left, B right, timer 0, reset both FIFOs */
@@ -15,6 +15,7 @@ void audio_region(unsigned n){if(n==region)return;region=n;stream();}
 void audio_irq(void){if(++block==8)stream();}
 static void tone(unsigned freq,unsigned envelope){REG16(0x68)=envelope;REG16(0x6c)=0x8000|freq;}
 void audio_tick(void){
+ if(dash_tick){dash_tick--;REG16(0x64)=1536+dash_tick*40;}
  if(!chime)return;
  if(chime_tick%7==0){
   static const unsigned notes[5]={1547,1670,1750,1796,1859};
@@ -25,11 +26,14 @@ void audio_tick(void){
 void audio_fx(unsigned event,int x){
  REG16(0x80)=0x0077|(x<175?0xb000:0)|(x>65?0x0b00:0);
  if(event==EV_DASH){
-  REG16(0x60)=0x0023;REG16(0x62)=0x8240;REG16(0x64)=0x8000|1450;
-  REG16(0x78)=0x5140;REG16(0x7c)=0xc020;
+  // A quick electrical zip with a soft 55ms air burst, not a long noise buzz.
+  dash_tick=8;REG16(0x60)=0;REG16(0x62)=0x7140;REG16(0x64)=0x8000|1856;
+  REG16(0x78)=0x5032;REG16(0x7c)=0xc045;
  }else if(event==EV_JUMP){
+  dash_tick=0;
   REG16(0x60)=0x0013;REG16(0x62)=0x6140;REG16(0x64)=0x8000|1250;
  }else if(event==EV_DIE){
+  dash_tick=0;
   REG16(0x60)=0x003b;REG16(0x62)=0x8240;REG16(0x64)=0x8000|950;
   REG16(0x78)=0x6240;REG16(0x7c)=0xc035;chime=0;
  }else{

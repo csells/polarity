@@ -49,10 +49,33 @@ for n,source in enumerate(original.rooms):
             if surfaces:
                 for y in range(min(surfaces)+1,17):
                     if g[y][x]==' ':g[y][x]='#'
+    # Later crossings ask players to use the district mechanic instead of
+    # walking along the floor underneath it. The checkpoint plazas stay safe.
+    if n>=3:
+        for act,x in enumerate((23,47,71)):
+            if n%3==0 and act<2:continue  # Teach, rehearse, then test.
+            width=4 if n%3<2 else 6
+            for xx in range(x,x+width):
+                if g[16][xx]==' ':g[16][xx]='^'
+            if region==1:
+                g[13][x+1]='m'  # A guarded gantry above the furnace floor.
+            elif region==2 and n%3==2:
+                for y in (9,10):
+                    if g[y][x+3]==' ':g[y][x+3]='a' if act%2==0 else 'b'
+            elif region==3 and n%3==2:
+                for y in (8,9):
+                    if g[y][x+3]==' ':g[y][x+3]='b' if act%2==0 else 'a'
+            elif region==4 and n%3==2:
+                for y in (10,11):
+                    if g[y][x+3]==' ':g[y][x+3]='a' if act%2==0 else 'b'
+            elif region==5:
+                for y in (14,15):
+                    if g[y][x+2]==' ':g[y][x+2]='h'
     assert all(len(row)==W for row in g)
     flat=''.join(map(''.join,g))
     for c in 'uvlE':assert flat.count(c)==1,(n,c)
     assert flat.count('c')==3
+    assert flat.count('m')<=8,(n,'Too many sentries for the engine')
     rooms.append(g)
 
 out=['#include <stdint.h>']

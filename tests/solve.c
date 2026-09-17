@@ -17,7 +17,7 @@ int pop(void){int n=heap[1],v=heap[hn--],i=1,j;while((j=i*2)<=hn){if(j<hn&&nodes
 static int distance(int x,int y,int xx,int yy){return abs(x-xx)+abs(y-yy)*2;}
 static int path(int x,int y,int mask){
  int best=100000;
- if(!mask)return distance(x,y,616,125);
+ if(!mask)return distance(x,y,(ROOM_W-3)*8,125);
  for(int i=0;i<3;i++)if(mask&(1<<i)){
   Enemy p=i==2?letter_point:relay_points[i];int d=distance(x,y,p.x,p.y)+path(p.x,p.y,mask&~(1<<i));if(d<best)best=d;
  }
@@ -42,6 +42,12 @@ int main(int argc,char **argv){
   if(found<0){printf("Room %d FAILED after %d states, furthest x=%d\n",r+1,end,best);fflush(stdout);return 1;}
   unsigned char path[4000];int count=0;for(int n=found;nodes[n].parent>=0;n=nodes[n].parent)path[count++]=nodes[n].action;
   printf("[%d/%d] %s: solved in %d frames, %d states\n",r+1,ROOMS,names[r],count*6,end);fflush(stdout);
-  char fn[64];snprintf(fn,sizeof(fn),want_letter?"artifacts/route-letter-%d.json":"artifacts/route-%d.json",r);FILE *fp=fopen(fn,"w");fputc('[',fp);for(int i=count-1;i>=0;i--)fprintf(fp,"%s%d",i==count-1?"":",",path[i]);fputs("]\n",fp);fclose(fp);
+  char fn[64];
+#ifdef POLARITY_ADVANCE
+  snprintf(fn,sizeof(fn),want_letter?"artifacts/gba-route-letter-%d.json":"artifacts/gba-route-%d.json",r);
+#else
+  snprintf(fn,sizeof(fn),want_letter?"artifacts/route-letter-%d.json":"artifacts/route-%d.json",r);
+#endif
+  FILE *fp=fopen(fn,"w");fputc('[',fp);for(int i=count-1;i>=0;i--)fprintf(fp,"%s%d",i==count-1?"":",",path[i]);fputs("]\n",fp);fclose(fp);
  }
 }

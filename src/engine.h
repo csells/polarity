@@ -1,6 +1,11 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 #include <stdint.h>
+#if defined(POLARITY_ADVANCE) && defined(__arm__)
+#define HOT __attribute__((section(".iwram"),long_call))
+#else
+#define HOT
+#endif
 #define LEFT 1
 #define RIGHT 2
 #define UP 4
@@ -9,7 +14,11 @@
 #define DASH 32
 #define LOCATIONS 6
 #define ROOMS 18
+#ifdef POLARITY_ADVANCE
+#define ROOM_W 92
+#else
 #define ROOM_W 80
+#endif
 #define ROOM_H 18
 #define EV_JUMP 1
 #define EV_DASH 2
@@ -27,9 +36,9 @@ extern const uint8_t * const levels[ROOMS];
 extern const char * const names[ROOMS];
 extern const char * const locations[LOCATIONS];
 void load_room(uint8_t room);
-uint8_t tile(uint8_t room,int16_t x,int16_t y);
-int16_t enemy_x(uint8_t n,uint8_t clock);
+HOT uint8_t tile(uint8_t room,int16_t x,int16_t y);
+HOT int16_t enemy_x(uint8_t n,uint8_t clock);
 void init_state(State *s,uint8_t room);
 void respawn(State *s,uint8_t room);
-uint8_t step(State *s,uint8_t room,uint8_t keys);
+HOT uint8_t step(State *s,uint8_t room,uint8_t keys);
 #endif

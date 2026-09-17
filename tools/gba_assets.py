@@ -1,7 +1,13 @@
-"""Original indexed pixel art, laid out for GBA hardware tiles and sprites."""
+"""Build GBA VRAM banks from original artwork and authored 16px terrain.
+
+BG0/1/2 share charblock 0 (16KiB); the 128-color painted backdrop occupies
+charblocks 1..3 up to 0xe000. Screenblocks 28..31 occupy the final 8KiB.
+OBJ art has an independent 32KiB budget. No bitmap-mode CPU framebuffer.
+"""
 from pathlib import Path
-import math,random,ast
+import ast, struct, math
 root=Path('src/gba/generated');root.mkdir(parents=True,exist_ok=True)
+packed=Path('assets/gba/packed')
 font=ast.literal_eval(next(n.value for n in ast.parse(Path('tools/make_assets.py').read_text()).body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='font' for t in n.targets)))
 def canvas(w,h,c=0):return [[c]*w for _ in range(h)]
 def rect(g,x,y,w,h,c):
@@ -15,214 +21,163 @@ def disk(g,x,y,r,c):
   for xx in range(x-r,x+r+1):
    if (xx-x)**2+(yy-y)**2<=r*r:rect(g,xx,yy,1,1,c)
 def pack(g):return [g[y][x]|g[y][x+1]<<4 for y in range(len(g)) for x in range(0,len(g[0]),2)]
-def tile8(g,x,y):return [row[x:x+8] for row in g[y:y+8]]
-def tiles(g):return sum((pack(tile8(g,x,y)) for y in range(0,len(g),8) for x in range(0,len(g[0]),8)),[])
-def color(h):h=h.lstrip('#');r,g,b=[int(h[i:i+2],16)//8 for i in (0,2,4)];return r|g<<5|b<<10
-def blend(a,b,t):return tuple(round(x*(1-t)+y*t) for x,y in zip(a,b))
-def pal(colors):return [color(c) for c in colors]+[0]*(16-len(colors))
-# Ink / edge / face / bevel / glint are consistent in all districts.
-themes=[('111d37','283653','405477','66849e','a3b9ba','e1cc9b'),('261c2c','4d303b','75424c','a3685b','e0a17c','ffe0a5'),('102c30','204541','356d54','65a276','a0d69d','e2edbc'),('20283e','364765','536d8e','87a4be','bdcdd2','ffe6bd'),('16213e','2a3e62','416691','689abc','a9dbe5','e5efdb'),('231b3b','403058','684774','98709c','d2a4c6','ffe4c4')]
-base=[canvas(8,8) for _ in range(192)]
+def tiles(g):return sum((pack([row[x:x+8] for row in g[y:y+8]]) for y in range(0,len(g),8) for x in range(0,len(g[0]),8)),[])
+def color(h):r,g,b=[int(h[i:i+2],16)//8 for i in (0,2,4)];return r|g<<5|b<<10
+def pal(colors):return list(map(color,colors))+[0]*(16-len(colors))
+def readpal(name):return list(struct.unpack('<16H',(packed/(name+'.pal')).read_bytes()))
+base=[canvas(8,8) for _ in range(128)]
 for ch,glyph in font.items():
  if ord(ch)>=128:continue
  base[ord(ch)]=canvas(8,8,2)
  for y,row in enumerate(glyph):
   for x,b in enumerate(row):
    if b=='1':base[ord(ch)][y][x+1]=1
-base[32]=canvas(8,8,2)
-# UI blank and divider.
-base[1]=canvas(8,8,2);base[2]=canvas(8,8,3)
-for tile in range(128,134):
- g=canvas(8,8,3);rect(g,0,0,8,1,4);rect(g,0,1,8,1,5);rect(g,0,7,8,1,2)
- if tile!=128:rect(g,0,0,8,2,3)
- for y in [3,6]:line(g,0,y,7,y,2)
- rect(g,3 if tile&1 else 6,3,1,3,2);rect(g,1,2,2,1,4)
- if tile==130:rect(g,0,0,1,8,5)
- if tile==131:rect(g,7,0,1,8,2)
- if tile==132: # metal deck
-  g=canvas(8,8,3);rect(g,0,0,8,2,5);rect(g,0,6,8,2,2);rect(g,1,3,1,1,6);rect(g,6,3,1,1,6)
- if tile==133: # lush lip
-  rect(g,0,0,8,2,5);rect(g,2,2,2,2,4);rect(g,6,2,1,3,4)
- base[tile]=g
-# Object tiles: color and shape both communicate function.
-for id in range(134,160):
- g=canvas(8,8)
- if id==134: # thorns
-  for x in (1,5):line(g,x,1,x-2,7,2);line(g,x,1,x+2,7,1)
- elif id in (135,136):
-  rect(g,2,0,4,8,2);rect(g,3,0,2,8,1)
-  for y in (1,5):line(g,1,y,6,y+2,3)
- elif id in (137,138,139,140):
-  disk(g,4,4,3,2);disk(g,4,4,2,1);rect(g,3,3,2,2,4 if id>=139 else 3)
-  if id&1:rect(g,3,1,2,6,1);rect(g,1,3,6,2,1)
-  else:line(g,1,4,4,1,1);line(g,4,1,6,4,1)
- elif id in (141,142):
-  rect(g,0,2,8,2,1 if id==141 else 2);rect(g,0,4,8,2,2 if id==141 else 0)
-  for x in (1,5):rect(g,x,3,2,1,3)
- elif id==143:
-  rect(g,0,1,8,6,2);rect(g,1,2,6,4,1);line(g,0,1,4,4,3);line(g,4,4,7,1,3)
- elif id==144:
-  rect(g,1,0,1,8,1);rect(g,2,1,5,3,3);rect(g,0,7,4,1,2)
- elif id==145:
-  rect(g,0,1,8,2,1)
-  for y in (3,5):line(g,2,y,5,y+1,3)
-  rect(g,0,7,8,1,2)
- elif id==146:
-  rect(g,3,0,2,8,1)
-  for y in (1,5):line(g,2,y,5,y+1,2)
- elif id==147:
-  line(g,3,2,3,6,2);line(g,1,3,3,1,1);line(g,3,1,5,3,1)
- elif id==148:
-  for y in range(8):rect(g,2+(y%3),y,2,1,1 if y&1 else 3)
- elif id==149:
-  disk(g,4,4,3,2);line(g,4,1,6,4,1);line(g,6,4,4,6,1);line(g,4,6,1,4,1);line(g,1,4,4,1,1)
- elif id==150:
-  rect(g,1,0,6,8,2);rect(g,2,1,4,6,3);rect(g,3,2,2,4,1)
- elif id==151:rect(g,0,3,8,2,1)
- elif id==152:rect(g,3,0,2,8,1)
- else:disk(g,4,4,1,1)
- base[id]=g
+base[1]=canvas(8,8,2)
+base[2]=canvas(8,8,3)
+# The foreground has strong silhouettes and one-pixel highlights. Backdrop
+# values are kept quieter by hardware alpha blending in the native renderer.
+meta=[];ids={}
+def add(name,g):ids[name]=128+len(meta)*4;meta.append(g)
+for kind in range(8):
+ g=canvas(16,16,2)
+ # Staggered slate courses with broken highlights, not uniform checkerboard.
+ for y in (1,6,11):
+  for x in range(-5+(y%2)*7,16,13):
+   rect(g,x,y,12,4,3+(x+y)%2);line(g,x+1,y,x+10,y,5);rect(g,x+2,y+2,3,1,4)
+ if kind<4:
+  rect(g,0,0,16,3,6);rect(g,0,0,16,1,8);rect(g,0,3,16,2,1)
+  if kind==1:rect(g,0,0,2,16,6);rect(g,2,4,1,12,1)
+  if kind==2:rect(g,14,0,2,16,1)
+  if kind==3:
+   for x in range(0,16,4):rect(g,x,2,2,4,7);rect(g,x+1,5,1,2,6)
+ elif kind==5:
+  rect(g,0,0,16,16,2);rect(g,0,0,16,2,5);rect(g,0,14,16,2,1)
+  for x in (2,12):rect(g,x,4,2,2,7);rect(g,x,11,2,2,4)
+  line(g,4,3,10,12,3)
+ elif kind==6:
+  rect(g,3,3,10,13,1);rect(g,4,4,8,12,9);rect(g,7,3,2,13,2);rect(g,3,8,10,2,2)
+ elif kind==7:
+  rect(g,0,0,16,2,1);rect(g,0,2,16,1,5)
+ add(['ROOF','ROOF_LEFT','ROOF_RIGHT','MOSS','WALL','STEEL','WINDOW','CEILING'][kind],g)
+g=canvas(16,16)
+for x in (3,11):
+ for y in range(3,16):rect(g,x-(y-3)//4,y,1+(y-3)//2,1,2)
+ line(g,x,3,x-3,15,1);line(g,x,4,x+2,14,3)
+add('SPIKES',g)
+for name in ('GATE_CYAN','GATE_AMBER'):
+ g=canvas(16,16);rect(g,4,0,8,16,2);rect(g,6,0,4,16,3);rect(g,7,0,2,16,1)
+ for y in (2,10):
+  if name.endswith('CYAN'):line(g,3,y+3,8,y,1);line(g,8,y,12,y+3,1)
+  else:rect(g,2,y+1,12,2,1)
+ add(name,g)
+for name in ('SIGNAL_OFF','POWER_OFF','SIGNAL_ON','POWER_ON'):
+ g=canvas(16,16);disk(g,8,8,7,2);disk(g,8,7,6,3);disk(g,8,7,4,2);line(g,3,3,6,1,1)
+ if 'SIGNAL' in name:
+  line(g,4,7,8,3,1);line(g,8,3,12,7,1);line(g,4,7,8,11,1);line(g,8,11,12,7,1)
+ else:rect(g,6,3,4,9,1);rect(g,3,6,10,3,1)
+ if name.endswith('ON'):disk(g,8,7,2,4)
+ rect(g,6,14,4,2,3);add(name,g)
+for name in ('BRIDGE_ON','BRIDGE_OFF'):
+ g=canvas(16,16);on=name.endswith('_ON')
+ rect(g,0,3,16,2,1 if on else 2)
+ for x in (1,9):rect(g,x,6,5,1,3 if on else 2)
+ if on:
+  rect(g,0,5,16,5,2);line(g,0,10,7,5,3);line(g,8,5,15,10,3)
+ add(name,g)
+g=canvas(16,16);rect(g,1,3,14,10,2);rect(g,2,4,12,8,1);line(g,1,3,8,9,3);line(g,8,9,14,3,3);add('LETTER',g)
+g=canvas(16,16);rect(g,3,1,2,15,2);rect(g,3,1,1,14,1);rect(g,5,2,9,6,3);line(g,6,3,11,5,1);rect(g,1,15,7,1,1);add('FLAG',g)
+g=canvas(16,16);rect(g,1,2,14,3,1);rect(g,0,14,16,2,2)
+for y in (5,8,11):line(g,4,y,11,y+2,3);line(g,11,y+2,4,y+3,1)
+add('SPRING',g)
+g=canvas(16,16);rect(g,7,0,3,16,2)
+for y in range(0,16,4):line(g,6,y,10,y+3,1);rect(g,6,y,1,2,3)
+add('ROPE',g)
+g=canvas(16,16);line(g,7,5,7,12,2);line(g,4,7,7,4,3);line(g,7,4,10,7,3);add('WIND',g)
+g=canvas(16,16);rect(g,5,0,6,16,2)
+for y in range(0,16,4):line(g,4,y,11,y+3,1);line(g,11,y+3,4,y+4,3)
+add('COIL',g)
+g=canvas(16,16);disk(g,8,8,6,2);line(g,8,2,13,8,1);line(g,13,8,8,14,3);line(g,8,14,3,8,3);line(g,3,8,8,2,1);disk(g,8,8,2,4);add('REFILL',g)
+g=canvas(16,16);rect(g,0,0,16,16,2);rect(g,2,1,12,14,3);rect(g,4,3,8,12,2);rect(g,6,4,4,8,1);add('EXIT',g)
+# Architectural props: lamps, roof finials, drainpipes, skylights and plant pots.
+g=canvas(16,16);line(g,8,0,8,15,2);rect(g,3,3,10,9,2);rect(g,5,4,6,6,9);line(g,3,3,8,0,6);line(g,8,0,13,3,6);rect(g,7,4,1,6,6);add('LAMP',g)
+g=canvas(16,16);line(g,7,3,7,15,6);disk(g,7,2,2,8);line(g,1,13,7,6,5);line(g,7,6,14,13,5);add('FINIAL',g)
+g=canvas(16,16);rect(g,5,0,6,16,1);rect(g,6,0,3,16,5);rect(g,6,0,1,16,7);rect(g,4,6,8,3,6);add('PIPE',g)
+g=canvas(16,16);rect(g,2,10,12,6,5);rect(g,3,12,10,4,3)
+for x,y in ((4,6),(9,3),(12,7),(6,9)):disk(g,x,y,3,7);line(g,x,y,8,12,6)
+add('PLANT',g)
+g=canvas(16,16);rect(g,0,5,16,11,2);line(g,0,5,6,0,8);line(g,6,0,15,5,8);rect(g,3,5,10,8,9);rect(g,7,3,2,13,5);rect(g,0,13,16,3,6);add('SKYLIGHT',g)
+g=canvas(16,16);rect(g,1,1,14,15,2);rect(g,2,2,12,13,6);rect(g,4,4,8,8,1);line(g,4,4,11,11,5);line(g,11,4,4,11,5);add('CRATE',g)
+# One 16px map marker, with clear locked/open/restored palette states.
+g=canvas(16,16);disk(g,8,8,6,2);disk(g,8,8,4,3);disk(g,8,8,2,1);add('MARKER',g)
 logo=canvas(224,32)
 for n,ch in enumerate('POLARITY'):
  for y,row in enumerate(font[ch]):
   for x,c in enumerate(row):
-   if c=='1':
-    rect(logo,16+n*24+x*4+1,y*4+3,4,4,2);rect(logo,16+n*24+x*4,y*4+1,4,4,1 if n<5 else 3)
-logo_tiles=tiles(logo)
-assets=[];maps=[];palettes=[]
-for area in range(6):
- rng=random.Random(110+area);ink,shadow,face,edge,light,warm=themes[area]
- p=[0]*256
- sky0=[(12,20,43),(29,16,38),(10,30,40),(18,30,57),(9,22,50),(23,14,42)][area]
- sky1=[(79,69,99),(153,74,73),(75,129,118),(132,151,167),(60,102,158),(103,66,122)][area]
- colors=['%02x%02x%02x'%blend(sky0,sky1,i/15) for i in range(16)]
- p[0:16]=pal(colors);p[16:32]=pal(['000000',ink,shadow,face,edge,light,warm])
- p[32:48]=pal(['000000',shadow,face,edge,light,warm]);p[48:64]=pal(['000000',ink,shadow,face,edge,light,warm])
- p[64:80]=pal(['000000','86f6e7','277b93','d1fff1','eafff7']);p[80:96]=pal(['000000','ffd28b','ae6446','fff0bf','fff9df'])
- p[96:112]=pal(['000000','ff8298','76394e','ffced0','ffefcf']);p[112:128]=pal(['000000','d9efbd','5e908c','ffffff','93f6cc'])
- p[128:144]=pal(['000000','e6eedf','121e35','ffc789','71e5dd','ffc789'])
- palettes.append(p)
- sky=canvas(256,160)
- for y in range(160):rect(sky,0,y,256,1,min(15,1+y*14//160))
- # The moon and stars stay in the far layer; nearer structures scroll faster.
- far=canvas(256,160);near=canvas(256,160)
- for _ in range(28):
-  x,y=rng.randrange(256),rng.randrange(8,91);rect(far,x,y,1,1,4)
- disk(far,192,37,16,3);disk(far,186,33,15,0)
- for x in range(-8,256,24):
-  top=rng.randrange(60,115);w=rng.randrange(14,24)
-  rect(far,x,top,w,160-top,1);rect(far,x,top,w,2,2)
-  for yy in range(top+6,148,9):
-   for xx in range(x+3,x+w-2,6):rect(far,xx,yy,2,3,3 if rng.random()<.25 else 2)
-  line(far,x+w//2,top,x+w//2,top-8,2)
- if area==2:
-  for x in (16,74,148,218):disk(far,x,80,24,2);disk(far,x-8,74,16,3);rect(far,x,80,3,64,1)
- elif area==3:
-  for x,y in ((28,54),(122,30),(212,75)):
-   disk(far,x,y,10,3);disk(far,x+13,y+3,8,3);rect(far,x-12,y+4,35,3,3)
- elif area==4:
-  line(far,113,118,130,65,2);line(far,146,118,130,65,2);line(far,112,119,147,119,3)
-  for a in range(180):
-   t=a*math.pi/180;rect(far,130+int(math.cos(t)*19),62+int(math.sin(t)*11),1,1,4)
- elif area==5:
-  for y in (45,55,65):
-   for x in range(256):rect(far,x,y+(x//12%2)*3,1,1,2)
- for x in range(-8,256,48):
-  h=rng.randrange(22,49);rect(near,x,160-h,32,h,1);rect(near,x-2,160-h,36,3,3)
-  for yy in range(166-h,156,8):
-   for xx in range(x+4,x+29,8):rect(near,xx,yy,3,4,4)
-  if area==1:rect(near,x+7,124-h,9,36,2);rect(near,x+5,122-h,13,3,3)
-  if area==2:
-   for yy in range(110,150,8):disk(near,x+35,yy,3,3);line(near,x+35,105,x+35,160,2)
-  if area in (3,4):line(near,x,146-h,x+40,142-h,3)
- # Deduplicate all backgrounds into one region-specific character set.
- data=sum((pack(t) for t in base),[]);lookup={};layer_maps=[]
- for img,bank in ((sky,0),(far,2),(near,3)):
-  m=[0]*1024
-  for y in range(20):
-   for x in range(32):
-    bits=tuple(pack(tile8(img,x*8,y*8)))
-    if not any(bits):idx=0
-    elif bits in lookup:idx=lookup[bits]
-    else:idx=len(data)//32;lookup[bits]=idx;data.extend(bits)
-    m[y*32+x]=idx|bank<<12
-  layer_maps.append(m)
- assert len(data)//32<896,(area,len(data)//32)
- data.extend([0]*(896*32-len(data)));data.extend(logo_tiles)
- assets.append(data);maps.append(layer_maps)
- print(f'[{area+1}/6] GBA scenery: {len(lookup)} unique background tiles',flush=True)
-# Animated, sixteen-pixel courier. The six-pixel collision core stays unchanged.
-sprites=[]
-for f in range(10):
- g=canvas(16,16);bob=1 if f in (2,4) else 0
- rect(g,5,1+bob,7,6,1);rect(g,6,0+bob,5,2,3);rect(g,5,2+bob,8,3,3);rect(g,6,2+bob,5,1,4)
- rect(g,7,5+bob,5,3,5);rect(g,10,5+bob,1,2,1);rect(g,12,5+bob,1,1,6)
- rect(g,5,8+bob,7,5,2);rect(g,7,8+bob,4,4,3);rect(g,5,9+bob,2,3,7)
- rect(g,3,8+bob,3,2,6);rect(g,1,7+(f&1),3,2,6);rect(g,0,6+(f&1),2,2,6)
- rect(g,5,12,3,3,1);rect(g,9,12,3,3,1)
- if f in (1,3):rect(g,3,14,4,2,4);rect(g,10,13,4,2,4)
- elif f in (5,7):rect(g,3,11,3,3,4);rect(g,11,11,3,3,4)
- else:rect(g,5,14,3,2,4);rect(g,10,14,3,2,4)
- if f==7:rect(g,0,10,4,2,3)
- sprites.append(g)
-for area in range(6):
- g=canvas(16,16);rect(g,4,1,8,6,1);rect(g,5,3,7,6,5);rect(g,10,5,1,1,1);rect(g,4,9,9,5,3);rect(g,5,14,3,2,1);rect(g,10,14,3,2,1)
- if area==0:rect(g,3,1,10,3,6)
- if area==1:rect(g,3,1,10,4,6);rect(g,5,7,7,2,2)
- if area==2:rect(g,2,1,12,3,2);rect(g,7,0,5,1,6)
- if area==3:rect(g,5,3,8,2,4)
- if area==4:rect(g,4,1,8,3,4);rect(g,6,6,6,2,4)
- if area==5:rect(g,4,0,8,4,4);rect(g,6,9,4,5,6)
- sprites.append(g)
-# Sentry, spark, particle, map cursor, and letter.
-g=canvas(16,16);rect(g,3,5,10,8,1);rect(g,4,4,8,7,2);rect(g,5,5,6,2,6);rect(g,5,6,2,1,4);rect(g,9,6,2,1,4);rect(g,2,12,4,3,3);rect(g,10,12,4,3,3);sprites.append(g)
-for f in range(4):
- g=canvas(16,16);r=4-f;disk(g,8,8,r,3);disk(g,8,8,max(1,r-2),4);sprites.append(g)
-g=canvas(16,16);line(g,4,3,8,7,4);line(g,8,7,12,3,4);sprites.append(g)
-g=canvas(16,16);rect(g,2,4,12,8,6);rect(g,3,5,10,6,4);line(g,2,4,8,9,3);line(g,8,9,13,4,3);sprites.append(g)
-# 32px portraits are drawn from each resident, then framed with district trim.
-portraits=[]
-for area in range(6):
- g=canvas(32,32,1);rect(g,1,1,30,30,2);s=sprites[10+area]
- for y in range(15):
-  for x in range(16):
-   if s[y][x]:rect(g,x*2,y*2+2,2,2,s[y][x])
- portraits.append(g)
-objpal=[]
-for accent,shade,scarf in [('7df4e5','318a9c','ffb87d'),('ffcf88','ba7652','82eadc')]+[(themes[i][4],themes[i][2],themes[i][5]) for i in range(6)]:
- objpal+=pal(['000000','11182a',shade,accent,'f5f5d8','e9b899',scarf,'73566c'])
-objpal+=pal(['000000','15243a','354e65','54768b','8db4bf','b6d0ca','e2c78c','58647c'])
-objpal+=pal(['000000','152037','263249','37455b','4d5f73','667586','7a8794','465063'])
-# map emblems are bespoke small architectural vignettes (4x4 hardware tiles).
-icons=[]
-for a in range(6):
- g=canvas(32,32);disk(g,16,18,13,2);rect(g,3,26,26,3,1)
- if a==0:
-  rect(g,7,11,18,15,3)
-  for y in range(8):rect(g,6+y,10-y,20-y*2,1,4)
-  rect(g,14,18,5,8,6);rect(g,8,15,3,4,4);rect(g,21,15,3,4,4)
- elif a==1:
-  rect(g,5,14,23,12,3);rect(g,8,3,5,14,2);rect(g,20,7,4,10,2)
-  for x in (7,14,21):rect(g,x,17,4,5,6)
- elif a==2:
-  rect(g,14,12,4,15,3)
-  for x,y,r in ((9,13,6),(21,13,7),(15,7,7)):disk(g,x,y,r,4)
-  rect(g,13,13,4,3,6)
- elif a==3:
-  rect(g,7,16,20,8,3);rect(g,6,24,22,2,6);line(g,8,17,15,5,4);line(g,25,17,18,5,4);disk(g,16,5,4,6)
- elif a==4:
-  rect(g,12,12,8,14,3);line(g,6,7,24,19,6);line(g,6,7,12,3,4);line(g,24,19,28,12,4);disk(g,14,9,4,4)
- else:
-  disk(g,16,15,11,3);disk(g,16,15,8,6);disk(g,16,15,5,4);rect(g,14,5,4,20,4);rect(g,6,13,20,4,4)
- icons.append(g)
-# C data has explicit sizes for direct DMA transfer, no runtime decompression.
+   if c=='1':rect(logo,16+n*24+x*4+1,y*4+3,4,4,2);rect(logo,16+n*24+x*4,y*4+1,4,4,1 if n<5 else 3)
+terrain_palettes=[
+ ['101b2b','111b29','203348','344d62','486b7d','698ea0','a8c4c0','769773','e5e2bc','ffd38a'],
+ ['171521','1d1a27','3b2935','663e48','97604f','bb8163','e4b686','8b995e','ffe2a0','ffbd69'],
+ ['0d2028','0f2026','20403d','335b4d','557b58','84aa71','bcd49b','649455','e5edbe','ffdf9e'],
+ ['16233c','172239','2d435c','4b667d','7695a3','9cbcbf','dbe3ca','8f9977','fff1c3','ffd999'],
+ ['171d34','192139','2e3c60','4b6188','6c86af','9ab2cc','c4d5d9','678994','e8efd0','ffe1a4'],
+ ['1b192d','211b32','39304e','5a486f','856789','ac8eab','d5bad0','849796','ffefdd','ffcf8c']]
+terrain_palettes=[pal(['000000']+p[1:]) for p in terrain_palettes]
+# Utility palette uses the same role indices for cyan and amber shapes.
+utility=[pal(['000000','c3fff3','194c62','48b9bd','f4fff4']),pal(['000000','ffe3a9','633b38','df9d56','fff8d7']),pal(['000000','ffd3c2','553047','e76c7c','fff1d3']),pal(['000000','e3ffc7','2a544f','82b78a','ffffff'])]
+ui=pal(['000000','f4efda','0b192b','eabe85','75d8d6'])
+data=sum((pack(g) for g in base),[])+sum((tiles(g) for g in meta),[])
+assert len(data)<=400*32
+data += [0]*(400*32-len(data));data+=tiles(logo)
+assert len(data)==16384
+# OBJ data: 16 courier poses, six residents, six independently sampled portraits.
+obj=list((packed/'courier.tiles').read_bytes());npc_start=len(obj)//32
+for i in range(6):obj+=list((packed/f'neighbor-{i}.tiles').read_bytes()[:512])
+portrait_start=len(obj)//32
+for i in range(6):obj+=list((packed/f'neighbor-{i}.tiles').read_bytes()[512:])
+fx_start=len(obj)//32
+fx=[]
+for f in range(12):
+ g=canvas(16,16)
+ if f<4:
+  r=4-f;disk(g,8,8,r,3);disk(g,8,8,max(1,r-2),1)
+ elif f==4:line(g,3,4,8,9,1);line(g,8,9,13,4,1)
+ elif f==5:g=meta[list(ids).index('LETTER')]
+ elif f==6:
+  for x in (2,10):rect(g,x,11,5,3,2)
+  rect(g,3,3,10,9,2);rect(g,4,2,8,7,3);rect(g,5,4,6,2,1);rect(g,7,8,2,3,4)
+ elif f==7:g=meta[list(ids).index('MARKER')]
+ elif f==8:line(g,8,5,6,10,3)
+ elif f==9:rect(g,7,7,1,2,1);rect(g,8,6,1,1,3)
+ elif f==10:rect(g,7,7,1,1,1)
+ else:line(g,4,8,9,7,3)
+ fx.append(g)
+obj+=sum((tiles(g) for g in fx),[])
+objpal=readpal('courier')+readpal('courier-amber')
+for bank in range(2):
+ for i in range(1,16):
+  c=objpal[bank*16+i];r,g,b=c&31,(c>>5)&31,(c>>10)&31
+  if max(r,g,b)>6:r=min(31,r*5//4+1);g=min(31,g*5//4+1);b=min(31,b*5//4+1)
+  objpal[bank*16+i]=r|(g<<5)|(b<<10)
+for i in range(6):objpal+=readpal(f'neighbor-{i}')
+objpal+=sum(utility,[])+ui+pal(['000000','778594','233345','45566a','617588'])
+objpal += [0]*(256-len(objpal));assert len(obj)<=32768
 out=['#include <stdint.h>']
 def arr(name,data,typ='uint8_t'):out.append(f'const {typ} {name}[{len(data)}]={{'+','.join(map(str,data))+'};')
-for a in range(6):
- arr(f'background_{a}',assets[a]);arr(f'palette_{a}',palettes[a],'uint16_t')
- for l in range(3):arr(f'map_{a}_{l}',maps[a][l],'uint16_t')
-arr('sprite_data',sum((tiles(g) for g in sprites+portraits+icons),[]));arr('sprite_palette',objpal,'uint16_t')
-out+=['const uint8_t *const backgrounds[6]={'+','.join(f'background_{a}' for a in range(6))+'};','const uint16_t *const region_palettes[6]={'+','.join(f'palette_{a}' for a in range(6))+'};','const uint16_t *const scenery_maps[6][3]={'+','.join('{'+','.join(f'map_{a}_{l}' for l in range(3))+'}' for a in range(6))+'};']
+for area in range(6):
+ painted=list((packed/f'terrain-{area}.tiles').read_bytes())
+ assert len(painted)==256
+ regional=data[:]
+ for name in ('ROOF','ROOF_LEFT','ROOF_RIGHT','MOSS','STEEL'):
+  at=ids[name]*32;regional[at:at+128]=painted[:128]
+ for name in ('WALL','CEILING'):
+  at=ids[name]*32;regional[at:at+128]=painted[128:]
+ arr(f'terrain_{area}',regional)
+arr('sprite_data',obj);arr('sprite_palette',objpal,'uint16_t')
+for i in range(7):
+ arr(f'background_{i}',(packed/f'scene-{i}.tiles').read_bytes())
+ p=list(struct.unpack('<128H',(packed/f'scene-{i}.pal').read_bytes()))+ui+readpal(f'terrain-{min(i,5)}')+sum(utility,[])+terrain_palettes[min(i,5)]*2
+ assert len(p)==256;arr(f'palette_{i}',p,'uint16_t')
+out+=['const uint8_t *const terrain_data[6]={'+','.join(f'terrain_{i}' for i in range(6))+'};','const uint8_t *const backgrounds[7]={'+','.join(f'background_{i}' for i in range(7))+'};','const uint16_t *const region_palettes[7]={'+','.join(f'palette_{i}' for i in range(7))+'};']
 (root/'assets.c').write_text('\n'.join(out)+'\n')
-(root/'assets.h').write_text(f'''#include <stdint.h>\nextern const uint8_t *const backgrounds[6];\nextern const uint16_t *const region_palettes[6];\nextern const uint16_t *const scenery_maps[6][3];\nextern const uint8_t sprite_data[{(len(sprites)*4+12*16)*32}];\nextern const uint16_t sprite_palette[160];\n#define BACKGROUND_BYTES {len(assets[0])}\n#define PORTRAIT_TILE {len(sprites)*4}\n#define ICON_TILE {len(sprites)*4+6*16}\n''')
-print(f'Art built: {len(sprites)} animated/object frames, six portraits, six map landmarks')
+(root/'assets.h').write_text('#include <stdint.h>\nextern const uint8_t *const backgrounds[7];\nextern const uint16_t *const region_palettes[7];\nextern const uint8_t *const terrain_data[6];\nextern const uint8_t sprite_data['+str(len(obj))+'];\nextern const uint16_t sprite_palette[256];\n#define BACKGROUND_BYTES 40960\n#define NPC_TILE '+str(npc_start)+'\n#define PORTRAIT_TILE '+str(portrait_start)+'\n#define FX_TILE '+str(fx_start)+'\n'+''.join(f'#define T_{name} {idx}\n' for name,idx in ids.items()))
+print(f'Art built: seven 128-color scenes, {len(meta)} metatiles, 16 courier poses, six residents and portraits; OBJ {len(obj)}/32768 bytes',flush=True)

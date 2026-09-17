@@ -22,7 +22,7 @@ let controllerDevice=null,controllerSetup=null,controllerProfiles={};
 try{const saved=JSON.parse(localStorage.getItem(ControllerProfile.storageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))controllerProfiles=saved;}catch(error){console.warn('Saved controller layouts unavailable:',error);}
 let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false,controllerStartHeld=false;
 const keymap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyZ:'A',Space:'A',KeyX:'B',ShiftLeft:'B',ShiftRight:'B',Enter:'start',KeyR:'select',KeyQ:'L',KeyE:'R'};
-const saveKey='polarity-advance-save-v1';
+const saveKey='polarity-advance-save-v2';
 let lastSave='',saveTime=0;
 function cartridgeSave(load=false){
  if(!emu)return;
@@ -30,7 +30,7 @@ function cartridgeSave(load=false){
   if(load){
    const saved=localStorage.getItem(saveKey);if(!saved)return;
    const bytes=Uint8Array.from(atob(saved),c=>c.charCodeAt(0));
-   if(bytes.length!==32768||bytes[0]!==0x41||bytes[1]!==1)throw Error('Invalid Advance save');
+   if(bytes.length!==32768||bytes[0]!==0x41||bytes[1]!==2)throw Error('Invalid Advance save');
    const ptr=core._malloc(bytes.length);try{core.HEAPU8.set(bytes,ptr);if(!core._mgbawasm_sram_load(ptr,bytes.length))throw Error('Could not load SRAM');}finally{core._free(ptr);}
    lastSave=saved;
   }else{

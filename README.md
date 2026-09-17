@@ -4,9 +4,9 @@
 
 An original precision platformer running as a **native Game Boy Advance cartridge** in mGBA WebAssembly. Every dash flips cyan ↔ amber. Cyan carries signal; amber carries power. Reconnect six neighborhoods in Lumen, meet the people waiting for your deliveries, and bring their city home.
 
-The Advance edition uses a 240 × 160 screen, hardware background layers with parallax, gradient skies, district scenery and weather, animated courier sprites and dash trails, illustrated landmarks and resident portraits, restoration lighting, and six original sampled soundtrack arrangements with stereo-positioned effects. The jump, dash, wall-jump, buffering and precision tuning remain exactly as family-tested. The first delivery teaches the basics through safe play.
+The Advance edition is composed for a 240 × 160 screen: 32px animated courier sprites, 16px terrain, a two-axis camera, seven original 128-color scene paintings, an illustrated city atlas, 64px resident portraits, restoration lighting, and six original 32-second stereo soundtrack arrangements. The jump, dash, wall-jump, buffering and precision tuning remain exactly as family-tested. The first delivery teaches the basics through safe play.
 
-Eighteen authored routes contain three checkpoint plazas each, two charge sockets, and an optional lost letter. Matching charge activates a socket, restores its bridges, and brings the delivery beacon closer to life. Both links open the exit. Checkpoints and links survive retries. Finish three deliveries to restore a neighborhood; the branching map brings the routes back together at Storm Heart.
+Eighteen Advance routes are 1,472 screen pixels wide and contain three checkpoint plazas each, two charge sockets, and an optional lost letter. Matching charge activates a socket, restores its bridges, and brings the delivery beacon closer to life. Both links open the exit. Checkpoints and links survive retries. Finish three deliveries to restore a neighborhood; the branching map brings the routes back together at Storm Heart.
 
 | Location | Feature | Unlock |
 | --- | --- | --- |
@@ -38,6 +38,8 @@ On the city map, A opens the room chooser and B resumes. Left/right select unloc
 
 **Advance starts fresh. There is no save portability between Color and Advance.** The editions have distinct cartridge save signatures and browser storage keys. Both persist progress locally in the same browser on the same site; saves do not sync between devices. Clearing browser data removes saves. Storage errors are shown in the player.
 
+This reimagining uses Advance save version 2 (`polarity-advance-save-v2`). Its expanded routes begin a fresh adventure; the earlier Advance save remains in its original browser key and is not imported.
+
 The original Color release is tagged **`gameboy-color`** at `2ed40f6b44584ca54b2b96a299e33c72896f8b62`. Its original cartridge and player remain at `/color/`, using their existing Color save. The Advance ROM is `web/polarity.gba`; the archived Color ROM is `web/color/polarity.gbc`.
 
 ## Build and run
@@ -56,9 +58,9 @@ To rebuild the Advance cartridge, install the pinned relocatable [xPack ARM tool
 ./build.sh
 ```
 
-The installer verifies the release SHA-256 checksum. Alternatively set `ARM_CC` and `ARM_OBJCOPY` to an existing ARM bare-metal GCC toolchain. Python 3 is the only asset-generation dependency. All pixel art and PCM samples are generated from the authored source, without external art or music downloads. Generated assets and the compiler are ignored by Git. The ROM is approximately 1.85 MB and uses 32 KiB SRAM.
+The installer verifies the release SHA-256 checksum. Alternatively set `ARM_CC` and `ARM_OBJCOPY` to an existing ARM bare-metal GCC toolchain. Python 3 is the only normal build dependency for assets. Original image-generated artwork is checked in under `assets/gba/source/`; the checked-in packed palettes and tiles make normal builds independent of image tools. To reprocess the artwork, install Pillow 12.3.0 and run `python3 tools/prepare_gba_art.py`. Terrain and original PCM scores are generated from authored Python sources. Generated C/PCM files and the compiler are ignored by Git. The ROM is approximately 6.7 MB and uses 32 KiB SRAM.
 
-The renderer uses GBA mode 0: foreground, two parallax layers and a HUD, plus hardware sprites. DMA3 uploads maps/OAM at VBlank; DMA0 supplies HBlank sky colors. DMA1 streams original 16,384 Hz PCM through direct sound A, with cascaded timer interrupts for loop boundaries. PSG effects are panned separately. Simulation advances once per native 59.73 Hz frame. The browser clock runs independently of animation callbacks, with frame-aligned input events so quick taps survive delayed browser scheduling. The ARM startup sets stacks and initializes data/BSS; the build writes and validates the cartridge header.
+The renderer uses GBA mode 0: an 8bpp painted backdrop, 4bpp architectural and collision layers, a HUD, and hardware sprites. It budgets 16 KiB for terrain/UI, 40 KiB for scene tiles, 8 KiB for screen maps, and a separate 32 KiB for OBJ art. DMA3 uploads maps/OAM at VBlank. DMA1 and DMA2 stream left/right 16,384 Hz PCM through Direct Sound A/B; timer interrupts reset both channels together at the 32-second loop. Swept PSG tones, noise and short arpeggios provide responsive effects. Hot rendering and physics functions execute from fast internal RAM; HUD updates clear only the rows they use. Simulation advances once per native 59.73 Hz frame, with a native overrun counter checked by cartridge replays. The browser clock runs independently of animation callbacks, with frame-aligned input events so quick taps survive delayed browser scheduling. The ARM startup sets stacks, copies fast code into internal RAM and initializes data/BSS; the build writes and validates the cartridge header.
 
 `npm ci` installs browser test dependencies and the pinned mGBA package; `npm run build` packages the static player, both cartridges and the existing hosting worker into `dist/`.
 
@@ -70,8 +72,11 @@ Build first, then generate deterministic routes and run the actual GBA cartridge
 
 ```sh
 mkdir -p artifacts
-cc -O2 -o tools/solve tests/solve.c src/engine.c src/levels.c
+cc -O2 -DPOLARITY_ADVANCE -o tools/solve tests/solve.c src/engine.c src/gba/generated/levels.c
 for r in $(seq 0 17); do ./tools/solve "$r" --letter; done
+cc -O2 -DPOLARITY_ADVANCE -o /tmp/polarity-gba-layout tests/gba-layout.c src/engine.c src/city.c src/gba/generated/levels.c
+/tmp/polarity-gba-layout
+node tests/gba-entry.cjs
 node tests/gba-replay.cjs
 node tests/gba-audio.cjs
 ```
@@ -106,9 +111,16 @@ These exercise actual browser emulation, isolated saves/reload, shoulder control
 
 - `src/engine.c`, `src/city.c`: portable movement and progression
 - `src/gba/`: native ARM startup, hardware renderer, game flow and audio
-- `tools/rooms.py`, `tools/story.py`: authored routes, residents and letters
-- `tools/gba_assets.py`, `tools/gba_music.py`: original indexed artwork and synthesized score
+- `tools/rooms.py`, `tools/gba_rooms.py`, `tools/story.py`: authored routes, Advance compositions, residents and letters
+- `tools/prepare_gba_art.py`, `tools/gba_assets.py`: artwork conversion, hardware palettes, metatiles and sprite packing
+- `tools/gba_music.py`: original stereo score synthesis
 - `web/app.js`: mGBA adapter, controls, audio and independent Advance saves
 - `web/color/`: preserved Color player and cartridge
 
 Advance emulation is [mGBA](https://github.com/mgba-emu/mgba) via [mGBA-wasm](https://github.com/wasm-gaming/mGBA-wasm), MPL-2.0; license and source links are in `web/vendor/mgba/`. The Color emulator is [binjgb](https://github.com/binji/binjgb), copyright Ben Smith, MIT licensed; its license is retained. Hardware implementation references include [Tonc](https://gbadev.net/tonc/). Game code, characters, level layouts, artwork and music are original to this project. No assets from Celeste, Mega Man or Mario are used.
+
+The district paintings, city atlas, courier sheet and resident sheet were created
+for Polarity using image generation, then quantized and packed for GBA hardware.
+The original PNGs, conversion script and packed output are all included. The
+terrain metatiles, camera, animation selection, level adaptations, palette
+lighting and stereo score are authored in this repository.

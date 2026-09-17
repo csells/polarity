@@ -22,6 +22,7 @@ typedef struct {uint16_t a,b,c,pad;} Obj;
 extern Obj objects[128];
 void copy16(volatile uint16_t *dst,const void *src,unsigned count);
 void audio_init(void);
+void audio_tick(void);
 void audio_region(unsigned region);
 void audio_irq(void);
 void audio_fx(unsigned event,int x);

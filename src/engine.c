@@ -11,8 +11,8 @@ uint8_t tile(uint8_t room,int16_t x,int16_t y){
  (void)room;if(x<0||x>=ROOM_W*8||y<24)return '#';if(y>=144)return '^';
  return world[(y/8)*ROOM_W+x/8];
 }
-static uint8_t solid(State *s,uint8_t room,int16_t x,int16_t y){uint8_t t=tile(room,x,y);return t=='#'||(t=='='&&(s->relays&1))||(t=='+'&&(s->relays&2));}
-static uint8_t blocked(State *s,uint8_t room,int16_t x,int16_t y){
+static HOT uint8_t solid(State *s,uint8_t room,int16_t x,int16_t y){uint8_t t=tile(room,x,y);return t=='#'||(t=='='&&(s->relays&1))||(t=='+'&&(s->relays&2));}
+static HOT uint8_t blocked(State *s,uint8_t room,int16_t x,int16_t y){
  return solid(s,room,x,y)||solid(s,room,x+5,y)||solid(s,room,x,y+10)||solid(s,room,x+5,y+10)||solid(s,room,x,y+5)||solid(s,room,x+5,y+5);
 }
 void init_state(State *s,uint8_t room){

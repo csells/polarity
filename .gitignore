@@ -24,3 +24,6 @@ artifacts/
 
 /tools/arm-toolchain/
 /src/gba/generated/
+
+# Optional artwork conversion previews
+/assets/gba/packed/*-preview.png

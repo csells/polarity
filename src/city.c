@@ -11,7 +11,11 @@ void city_take_letter(City *c,uint8_t room){c->letters[room/8]|=1u<<(room&7);}
 void city_encode(const City *c,uint8_t *b){uint8_t i,sum=37;memset(b,0,SAVE_SIZE);b[0]=0x50;b[1]=3;b[2]=c->selected;for(i=0;i<6;i++){b[3+i]=c->progress[i];b[9+i]=c->checkpoint[i];b[16+i]=c->relays[i];}for(i=0;i<3;i++)b[22+i]=c->letters[i];for(i=2;i<31;i++)sum+=b[i];b[31]=sum;}
 uint8_t city_decode(City *c,const uint8_t *b){
  uint8_t i,sum=37;if(b[0]!=0x50||(b[1]!=2&&b[1]!=3)||b[2]>=6)return 0;
+#ifdef POLARITY_ADVANCE
+ for(i=0;i<6;i++)if(b[3+i]>3||(b[9+i]!=0&&b[9+i]!=20&&b[9+i]!=44&&b[9+i]!=68))return 0;
+#else
  for(i=0;i<6;i++)if(b[3+i]>3||(b[9+i]!=0&&b[9+i]!=20&&b[9+i]!=40&&b[9+i]!=60))return 0;
+#endif
  if(b[1]==2){for(i=2;i<15;i++)sum+=b[i];if(sum!=b[15])return 0;}
  else{for(i=2;i<31;i++)sum+=b[i];if(sum!=b[31])return 0;for(i=0;i<6;i++)if(b[16+i]>3)return 0;if(b[24]&252)return 0;}
  memset(c,0,sizeof(*c));c->selected=b[2];for(i=0;i<6;i++){c->progress[i]=b[3+i];if(b[1]==3){c->checkpoint[i]=b[9+i];c->relays[i]=b[16+i];}}

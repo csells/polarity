@@ -14,7 +14,7 @@ Advance saves separate; preserve existing Advance progress.
   that explain the storm, the courier's task and the consequences of each repair.
 - [x] Verify changed routes in the native emulator, audio, browser controls,
   save preservation, idle rendering and unchanged movement fingerprint.
-- [ ] Publish and verify the public release.
+- [x] Publish and verify the public release.
 
 ## Evidence
 
@@ -51,3 +51,13 @@ Pending crash report details: device/browser and freeze/reload/error behavior.
 - [x] Updated player: ten real-time minutes in Chrome (35,857 frames), no errors,
   64 MiB WASM, about 4–8 MiB JS heap, one to three pending sound sources; two
   real-time minutes in WebKit with active audio and a bounded queue.
+
+## Public release
+
+Published Sites version 9 from `705f5a8295a58e121fc73b6de91c21e97dce590c`.
+The public ROM and player JavaScript match the verified local files byte for byte.
+Public Chrome checks passed keyboard recovery after an injected failure, saved
+checkpoint reload, GBA shoulders, phone/landscape layout and independent Color
+storage. ROM SHA-256:
+`4485baf17cae85508c2f8d25d3f5e83405f5c7e09e209d4e0c15ff2f95ab5809`.
+The specific reported crash remains open as described above.

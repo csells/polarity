@@ -93,9 +93,17 @@ static HOT uint16_t art(unsigned char c,unsigned x,unsigned y){unsigned t=0,p=9;
  }return t?t|(p<<12):0;
 }
 static int clamp(int n,int lo,int hi){return n<lo?lo:n>hi?hi:n;}
+static unsigned supports_courier(unsigned t){return t=='#'||(t=='='&&(player.relays&1))||(t=='+'&&(player.relays&2));}
+static int courier_y(void){
+ // Whole-pixel collision leaves fractional gravity motion while resting on a floor.
+ // Anchor the drawing to that floor; retain half-pixel precision in the air.
+ int x=player.x/16,y=player.y/16;
+ if(player.vy>=0&&(supports_courier(tile(room_id,x,y+11))||supports_courier(tile(room_id,x+5,y+11))))return y*2;
+ return player.y/8;
+}
 static HOT void follow_camera(unsigned immediate){
  int tx=clamp(player.x/8-(player.face?88:144),0,ROOM_W*16-240);
- int ty=clamp(player.y/8-82,0,ROOM_H*16-144);
+ int ty=clamp(courier_y()-82,0,ROOM_H*16-144);
  if(immediate){camera=tx;camera_y=ty;return;}
  int dx=tx-(int)camera,dy=ty-(int)camera_y;
  camera+=clamp(dx/4+(dx>0)-(dx<0),-8,8);
@@ -131,9 +139,9 @@ static HOT void room_render(void){
  hide_sprites();
  unsigned frame=player.dash?7:!(player.ground||(player.coyote&&player.vy>=0))?(player.wall&&player.vy>0?8:player.vy<0?5:6):landing?9:player.vx?1+(player.clock/5)%4:0;
  if(tile(room_id,player.x/16+3,player.y/16+5)=='r'&&player.vy)frame=8;
- int px=player.x/8-(int)camera-10,py=player.y/8-(int)camera_y-8;
+ int px=player.x/8-(int)camera-10,py=courier_y()-(int)camera_y-8;
  sprite(0,px,py,frame*16,player.phase,2,!player.face);
- for(unsigned i=4;i>0;i--){trail_x[i]=trail_x[i-1];trail_y[i]=trail_y[i-1];}trail_x[0]=player.x/8;trail_y[0]=player.y/8;
+ for(unsigned i=4;i>0;i--){trail_x[i]=trail_x[i-1];trail_y[i]=trail_y[i-1];}trail_x[0]=player.x/8;trail_y[0]=courier_y();
  if(player.dash)for(unsigned i=1;i<5;i++){
   sprite(24+i,trail_x[i]-(int)camera-10,trail_y[i]-(int)camera_y-8,7*16,player.phase,2,!player.face);
   objects[24+i].a|=0x0400;objects[24+i].c|=1<<10;
@@ -158,7 +166,7 @@ static void enter_room(unsigned resume){
  clear_ui();region_art(room_id/3);load_room(room_id);init_state(&player,room_id);
  if(resume&&city.progress[room_id/3]==room_id%3){player.checkpoint=city.checkpoint[room_id/3];player.relays=city.relays[room_id/3];respawn(&player,room_id);}
  player.letter=city_has_letter(&city,room_id);game_mode=1;entry_latch=previous_keys&(KEY_A|KEY_B|KEY_START);room_time=0;landing=0;old_ground=0;follow_camera(1);
- for(unsigned i=0;i<5;i++){trail_x[i]=player.x/8;trail_y[i]=player.y/8;}
+ for(unsigned i=0;i<5;i++){trail_x[i]=player.x/8;trail_y[i]=courier_y();}
  room_render();save();
 }
 static void delivery(void){clear_ui();game_mode=6;panel(1,3);center(2,"D E L I V E R Y   M A D E");sprite(0,88,22,PORTRAIT_TILE+(room_id/3)*64,2+room_id/3,3,0);panel(11,9);center(11,people[room_id/3]);for(unsigned i=0;i<3;i++)center(12+i*2,deliveries[room_id][i]);center(18,player.letter?"A LETTER FINDS ITS WAY HOME":"A LOST LETTER STILL WAITS");center(19,"A CONTINUE");audio_fx(EV_EXIT,120);}

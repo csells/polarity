@@ -77,6 +77,7 @@ for r in $(seq 0 17); do ./tools/solve "$r" --letter; done
 cc -O2 -DPOLARITY_ADVANCE -o /tmp/polarity-gba-layout tests/gba-layout.c src/engine.c src/city.c src/gba/generated/levels.c
 /tmp/polarity-gba-layout
 node tests/gba-entry.cjs
+node tests/gba-idle.cjs
 node tests/gba-replay.cjs
 node tests/gba-audio.cjs
 ```

@@ -6,6 +6,8 @@ Every dash flips cyan ↔ amber. Gates matching your charge are safe. Eight sing
 
 ## Play
 
+[Play POLARITY in your browser](https://polarity-storm-courier.csells.chatgpt.site) — public, with keyboard, touch, and controller support.
+
 Run `python3 server.py`, then open port 8787. The web player includes multitouch controls, keyboard and gamepad input, sound effects, pause, fullscreen, and a ROM download.
 
 - Arrows / WASD: move and aim the dash
@@ -24,11 +26,13 @@ On hardware: D-pad to move, A to jump, B to dash, Start to pause, Select to retr
 
 ## Build
 
-`./build.sh` generates tile art and levels, compiles C with GBDK 2020 4.5.0, and produces `web/polarity.gbc`. The included local toolchain is macOS ARM64; on another platform, download the matching [GBDK release](https://github.com/gbdk-2020/gbdk-2020/releases/tag/4.5.0) into `tools/gbdk`.
+`./build.sh` generates tile art and levels, compiles C with GBDK 2020 4.5.0, and produces `web/polarity.gbc`. The compiler is not included in this repository. Download the [GBDK 2020 4.5.0 release](https://github.com/gbdk-2020/gbdk-2020/releases/tag/4.5.0) for your operating system and extract it so the compiler is at `tools/gbdk/bin/lcc`. The ready-to-play ROM is included in `web/polarity.gbc`.
 
 The ROM is 32 KiB and targets Game Boy Color hardware. Progress lasts for the current session; refreshing the browser starts a new run.
 
 ## Verification
+
+Run `mkdir -p artifacts` before the checks below. Browser tests require Google Chrome, `npm install`, a running `python3 server.py`, and a local ROM build for symbol files.
 
 `cc -O2 -o tools/solve tests/solve.c src/engine.c src/levels.c && ./tools/solve` searches for a route through every room using the actual C physics engine, producing replayable inputs in `artifacts/`.
 

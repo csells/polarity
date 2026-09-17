@@ -6,3 +6,15 @@ build/
 dist/
 artifacts/
 *.cdb
+
+# Downloaded development references and generated room data
+/tools/binjgb-files.json
+/tools/binjgb-index.html
+/tools/demo.js
+/tools/emfiles.json
+/tools/emulator-debug.h
+/tools/emulator.c
+/tools/emulator.h
+/tools/levels.json
+/tools/release.json
+/tools/wrapper.c

@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "name": "polarity-storm-courier",
+  "private": true,
+  "scripts": {
+    "build": "python3 tools/build_site.py"
+  }
+}

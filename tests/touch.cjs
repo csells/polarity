@@ -1,0 +1,24 @@
+const {chromium}=require('playwright');const fs=require('fs');
+(async()=>{
+ const b=await chromium.launch({channel:'chrome',headless:true});
+ const page=await b.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:8787',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.polarity);await page.tap('#play');await page.waitForTimeout(600);await page.evaluate(()=>{polarity.freeze();polarity.release();polarity.advance(4194304,false);});
+ const xy=await page.evaluate(()=>{const r=document.querySelector('#dpad').getBoundingClientRect(),a=document.querySelector('[data-key="A"]').getBoundingClientRect(),d=document.querySelector('[data-key="B"]').getBoundingClientRect();return{right:{x:r.x+r.width*.9,y:r.y+r.height*.5,id:1},diagonal:{x:r.x+r.width*.9,y:r.y+r.height*.1,id:1},jump:{x:a.x+a.width/2,y:a.y+a.height/2,id:2},dash:{x:d.x+d.width/2,y:d.y+d.height/2,id:2}}});
+ const cdp=await page.context().newCDPSession(page);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[xy.right,xy.jump]});
+ let active=await page.locator('[data-key].active').evaluateAll(es=>es.map(e=>e.dataset.key));if(!active.includes('right')||!active.includes('A'))throw Error('Simultaneous direction + jump failed');
+ await page.evaluate(()=>polarity.advance(70224*12,false));
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[xy.diagonal,xy.dash]});
+ active=await page.locator('[data-key].active').evaluateAll(es=>es.map(e=>e.dataset.key));if(!['right','up','B'].every(k=>active.includes(k)))throw Error('Diagonal dash failed');
+ await page.evaluate(()=>polarity.advance(70224*4,false));
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ if(await page.locator('[data-key].active').count())throw Error('Touch keys stuck after release');
+ await page.screenshot({path:'artifacts/mobile-playing.png',fullPage:true,timeout:10000});
+ await page.click('#pause');if(!await page.evaluate(()=>polarity.paused))throw Error('Pause failed');await page.click('#pause');if(await page.evaluate(()=>polarity.paused))throw Error('Resume failed');
+ await page.click('#sound');if(await page.locator('#sound').getAttribute('aria-pressed')!=='true')throw Error('Mute failed');
+ await page.setViewportSize({width:844,height:390});await page.screenshot({path:'artifacts/landscape.png',timeout:10000});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Landscape overflow');
+ await page.setViewportSize({width:1360,height:1100});await page.screenshot({path:'artifacts/desktop-playing.png',fullPage:true,timeout:10000});
+ console.log('PASS: multitouch jump, diagonal dash, release, pause/resume, mute, portrait/landscape layout.');console.log('Browser errors:',errors);await b.close();if(errors.length)process.exit(1);
+})().catch(e=>{console.error(e);process.exit(1)});

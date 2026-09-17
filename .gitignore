@@ -1,0 +1,8 @@
+node_modules/
+tools/gbdk/
+tools/gbdk.tar.gz
+tools/solve
+build/
+dist/
+artifacts/
+*.cdb

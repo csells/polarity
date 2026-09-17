@@ -21,3 +21,6 @@ artifacts/
 
 # Python level-authoring cache
 /tools/__pycache__/
+
+/tools/arm-toolchain/
+/src/gba/generated/

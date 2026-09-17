@@ -15,5 +15,6 @@ uint8_t city_decode(City *c,const uint8_t *b){
  if(b[1]==2){for(i=2;i<15;i++)sum+=b[i];if(sum!=b[15])return 0;}
  else{for(i=2;i<31;i++)sum+=b[i];if(sum!=b[31])return 0;for(i=0;i<6;i++)if(b[16+i]>3)return 0;if(b[24]&252)return 0;}
  memset(c,0,sizeof(*c));c->selected=b[2];for(i=0;i<6;i++){c->progress[i]=b[3+i];if(b[1]==3){c->checkpoint[i]=b[9+i];c->relays[i]=b[16+i];}}
- if(b[1]==3)for(i=0;i<3;i++)c->letters[i]=b[22+i];return b[1]==2?2:1;
+ if(b[1]==3){for(i=0;i<3;i++)c->letters[i]=b[22+i];}
+ return b[1]==2?2:1;
 }

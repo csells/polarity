@@ -1,74 +1,114 @@
-# POLARITY: Storm Courier
+# POLARITY: Storm Courier — Advance
 
-An original Game Boy Color precision platformer and a mobile web player.
+[Play the Advance edition](https://polarity-storm-courier.csells.chatgpt.site) · [Play the Color original](https://polarity-storm-courier.csells.chatgpt.site/color/) · [Game Boy Color source release](https://github.com/csells/polarity/tree/gameboy-color)
 
-Every dash flips cyan ↔ amber. Gates matching your charge are safe. Restore **six neighborhoods with three distinct deliveries each** in the city of Lumen. The jump, dash, wall-jump and precision tuning are unchanged from the family-tested version. Every room scrolls across four screens, with three checkpoint flags, unlimited retries, and automatic saved progress.
+An original precision platformer running as a **native Game Boy Advance cartridge** in mGBA WebAssembly. Every dash flips cyan ↔ amber. Cyan carries signal; amber carries power. Reconnect six neighborhoods in Lumen, meet the people waiting for your deliveries, and bring their city home.
 
-| Location | New feature | Unlock |
+The Advance edition uses a 240 × 160 screen, hardware background layers with parallax, gradient skies, district scenery and weather, animated courier sprites and dash trails, illustrated landmarks and resident portraits, restoration lighting, and six original sampled soundtrack arrangements with stereo-positioned effects. The jump, dash, wall-jump, buffering and precision tuning remain exactly as family-tested. The first delivery teaches the basics through safe play.
+
+Eighteen authored routes contain three checkpoint plazas each, two charge sockets, and an optional lost letter. Matching charge activates a socket, restores its bridges, and brings the delivery beacon closer to life. Both links open the exit. Checkpoints and links survive retries. Finish three deliveries to restore a neighborhood; the branching map brings the routes back together at Storm Heart.
+
+| Location | Feature | Unlock |
 | --- | --- | --- |
-| Spark District | Directional dash and charge gates | Start here |
-| Iron Foundry | Patrolling sentries: stomp or dash through | Clear Spark District |
-| Hanging Gardens | Ropes: hold up/down to climb, jump to let go | Clear Spark District |
-| Cloud Works | Launch springs | Clear Iron Foundry |
-| Wind Observatory | Rising wind currents | Clear Hanging Gardens |
-| Storm Heart | Timed coils: dim is safe, bright is dangerous | Clear both Cloud Works and Wind Observatory |
+| Spark District | Jump, directional dash, polarity and charge gates | Start here |
+| Iron Foundry | Sentries: stomp or dash through | Restore Spark District |
+| Hanging Gardens | Climbing ropes and canopy routes | Restore Spark District |
+| Cloud Works | Springs and freight platforms | Restore Iron Foundry |
+| Wind Observatory | Updrafts and aerial landings | Restore Hanging Gardens |
+| Storm Heart | Timed coils and combined mechanics | Restore both upper branches |
 
-Cyan carries signal; amber carries power. Touch each socket in its matching charge to restore its bridges. Both links open the delivery beacon. Activated sockets survive retries, and each unfinished location remembers its sockets and checkpoint. The first delivery is a safe playable tutorial with no lethal hazards.
+## Controls
 
-Meet Mara, Bo, Ivy, Kit, Sol and Nell through short radio messages and delivery conversations. The foundry supplies the freight lifts; the gardens send seeds to the observatory; both routes bring help to the storm heart. Neighborhoods illuminate on the spatial world map after three deliveries. Original music gains bass and percussion as the city wakes.
+| Action | GBA / touch | Keyboard | Standard controller |
+| --- | --- | --- | --- |
+| Move / aim | D-pad | Arrows / WASD | D-pad / left stick |
+| Jump | A | Z / Space | Bottom face button |
+| Dash + flip | B or R shoulder | X / Shift / E | Right or left face button, or RB |
+| City map | L shoulder, or Up + Select | M / Q | LB, or Up + Back / Select |
+| Retry / read collected letter | Select | R | Back / View / Select |
+| Pause | Start | Enter | Start / Options |
 
-One optional lost letter in each room tells a smaller story. Letters are permanently collected. Choose a location with A, use left/right to select any unlocked room, and press Select / R to read its found letter. B on the map resumes the next delivery directly. Completed locations offer all three rooms for replay.
+On an 8BitDo SNES layout, bottom **B** jumps and **Y / A** dashes. Standard mappings also support **L** for the map and **R** for dash. For devices reporting raw buttons, axes or HID hats, use **8BitDo / controller setup** to teach the eight essential controls; Up + Select still opens the map on these calibrated layouts. Layouts persist for that controller/mode in the browser. Windows / X-input mode is useful where the model supports it. The SN30 2.4G for SNES Classic connects directly to a PC over USB; its console receiver is not a PC USB receiver. [8BitDo manuals](https://support.8bitdo.com/).
 
-## Play
+Controller input can start the game even when the browser keeps audio locked. Tap **Enable Sound** if needed. Disconnecting or leaving the page pauses play. The touch D-pad supports diagonal aiming and simultaneous jump/dash touches; landscape puts controls beside the screen. The native pause menu offers A to resume and B for the map.
 
-[Play POLARITY in your browser](https://polarity-storm-courier.csells.chatgpt.site) — public, with keyboard, touch, and controller support.
+On the city map, A opens the room chooser and B resumes. Left/right select unlocked rooms. Select reads a collected letter. Completed locations remain replayable.
 
-Run `python3 server.py`, then open port 8787. The web player includes multitouch controls, keyboard and gamepad input, sound effects, pause, fullscreen, and a ROM download.
+## Saves and editions
 
-- Arrows / WASD: move and aim the dash
-- Z / Space: jump (hold for height)
-- X / Shift: dash and flip charge
-- Enter: pause
-- R: retry from the last flag
-- M: world map (or use the World Map button)
+**Advance starts fresh. There is no save portability between Color and Advance.** The editions have distinct cartridge save signatures and browser storage keys. Both persist progress locally in the same browser on the same site; saves do not sync between devices. Clearing browser data removes saves. Storage errors are shown in the player.
 
-Standard browser-mapped controllers (USB or Bluetooth): D-pad / left stick to move and aim; bottom face button (Xbox A / PlayStation Cross) to jump; right or left face button (B / Circle or X / Square) to dash; Start / Options to start, pause and resume; Back / View / Share to retry. Press a button after connecting so the browser detects it. If audio remains locked, tap **Enable Sound** once. Disconnecting the active controller pauses the game.
+The original Color release is tagged **`gameboy-color`** at `2ed40f6b44584ca54b2b96a299e33c72896f8b62`. Its original cartridge and player remain at `/color/`, using their existing Color save. The Advance ROM is `web/polarity.gba`; the archived Color ROM is `web/color/polarity.gbc`.
 
-For 8BitDo SN30/SF30-style layouts, bottom **B** jumps and **Y / A** dashes; **START** pauses and **SELECT** retries; **UP + SELECT** opens the map. Use Windows / X-input mode where supported. If the browser does not recognize the layout, open **8BitDo / controller setup** and teach its eight controls. This supports D-pads reported as buttons, digital axes, or HID hats and saves the layout per controller/mode in this browser. The SN30 2.4G model for SNES Classic must connect directly to a PC by USB; its console receiver is not a PC USB receiver. See [8BitDo SN30 support](https://support.8bitdo.com/faq/sn30.html) and [SN30 2.4G support](https://support.8bitdo.com/faq/sn30-2-4-g.html).
+## Build and run
 
-`node tests/controller-profile.cjs` tests binding interpretation. `node tests/8bitdo.cjs` tests simulated raw controller reports through the real browser player, including calibration, diagonals, pause/retry, and persistence. These tests do not establish physical compatibility of every controller firmware or Windows driver.
+The ready-to-play cartridges and browser emulator binaries are included. To serve them locally:
 
-On hardware: D-pad to move, A to jump, B to dash, Start to pause, Select to retry, Up + Select for the map. The hardware pause menu also offers A to resume and B for the map.
+```sh
+python3 server.py
+# Open http://localhost:8787
+```
 
-## Build
+To rebuild the Advance cartridge, install the pinned relocatable [xPack ARM toolchain](https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/tag/v15.2.1-1.1) into this checkout and compile:
 
-`./build.sh` generates tile art, levels and dialogue, compiles C with GBDK 2020 4.5.0, and produces `web/polarity.gbc`. The compiler is not included in this repository. Download the [GBDK 2020 4.5.0 release](https://github.com/gbdk-2020/gbdk-2020/releases/tag/4.5.0) for your operating system and extract it so the compiler is at `tools/gbdk/bin/lcc`. The ready-to-play ROM is included in `web/polarity.gbc`.
+```sh
+./tools/setup-arm.sh
+./build.sh
+```
 
-The ROM is 32 KiB, targets Game Boy Color hardware, and uses an MBC5 cartridge with 8 KiB of battery-backed save RAM. The browser stores cartridge saves locally. Return in the same browser on the same site to continue; saves do not sync between devices. Clearing browser data removes the save. A visible message reports storage failures. Saves from the earlier eighteen-room adventure preserve completed deliveries; their in-room flags restart at the entrance because the redesigned geometry has changed.
+The installer verifies the release SHA-256 checksum. Alternatively set `ARM_CC` and `ARM_OBJCOPY` to an existing ARM bare-metal GCC toolchain. Python 3 is the only asset-generation dependency. All pixel art and PCM samples are generated from the authored source, without external art or music downloads. Generated assets and the compiler are ignored by Git. The ROM is approximately 1.85 MB and uses 32 KiB SRAM.
+
+The renderer uses GBA mode 0: foreground, two parallax layers and a HUD, plus hardware sprites. DMA3 uploads maps/OAM at VBlank; DMA0 supplies HBlank sky colors. DMA1 streams original 16,384 Hz PCM through direct sound A, with cascaded timer interrupts for loop boundaries. PSG effects are panned separately. Simulation advances once per native 59.73 Hz frame. The browser clock runs independently of animation callbacks, with frame-aligned input events so quick taps survive delayed browser scheduling. The ARM startup sets stacks and initializes data/BSS; the build writes and validates the cartridge header.
+
+`npm ci` installs browser test dependencies and the pinned mGBA package; `npm run build` packages the static player, both cartridges and the existing hosting worker into `dist/`.
+
+For the legacy GBC build, install [GBDK 2020 4.5.0](https://github.com/gbdk-2020/gbdk-2020/releases/tag/4.5.0) at `tools/gbdk/` and run `./build-gbc.sh`. Its engine and story data remain shared source; its renderer and audio live in `src/main.c` and `src/music.c`.
 
 ## Verification
 
-Run `mkdir -p artifacts` before the checks below. Browser tests require Google Chrome, `npm install`, a running `python3 -m http.server 8788 --directory web`, and a local ROM build for symbol files.
+Build first, then generate deterministic routes and run the actual GBA cartridge:
 
-`cc -O2 -o tools/solve tests/solve.c src/engine.c src/levels.c && ./tools/solve` searches for a route through every room using the actual C physics engine, producing replayable inputs in `artifacts/`.
+```sh
+mkdir -p artifacts
+cc -O2 -o tools/solve tests/solve.c src/engine.c src/levels.c
+for r in $(seq 0 17); do ./tools/solve "$r" --letter; done
+node tests/gba-replay.cjs
+node tests/gba-audio.cjs
+```
 
-`node tests/replay.cjs` replays all eighteen letter-collecting room solutions in the actual cartridge, stepping its CPU to input polls, navigating the branching map, and checking both relays, all letters, delivery conversations, restoration scenes, the homecoming, and saved progress. `node tests/save-and-map.cjs` checks real flag activation, retry, map return/resume, and checkpoint persistence through reload. `cc -O2 -o /tmp/adventure-tests tests/adventure.c src/engine.c src/levels.c && /tmp/adventure-tests` checks the new mechanics directly. `node tests/touch.cjs` checks simultaneous touch controls, diagonal dashes, pause, sound, and phone layouts. `node tests/controller.cjs` verifies standard controller inputs through the browser Gamepad API using simulated controller reports, including start with locked audio, pause/resume, disconnect/reconnect, dead zones, and focus safety. Physical USB/Bluetooth hardware requires a device/browser that exposes the standard mapping. Install the dev dependency with `npm install`.
+The replay operates the same vendored mGBA core as the web player. It checks all eighteen letters and routes, branching unlocks, resident deliveries, restoration scenes, the ending, replay selection, SRAM reload, rejection of Color saves, and one physics update per frame. Audio checks cover six distinct arrangements, clipping and playback across a complete DMA loop. Screenshots and a soundtrack sample are written to ignored `artifacts/`.
 
-`cc -O2 -o /tmp/movement tests/movement.c src/engine.c src/levels.c && /tmp/movement` verifies a golden fingerprint of the original movement across 1,440 frames of jumping, dashing, wall movement, springs, ropes and wind. `cc -O2 -o /tmp/city tests/city.c src/city.c && /tmp/city` checks spatial navigation, progression, letters, save integrity and legacy migration. `python3 tests/rooms.py` checks distinct geometry, checkpoint plazas and required objectives.
+Native checks:
 
-Before ROM replays, generate all letter routes: `for r in $(seq 0 17); do ./tools/solve "$r" --letter; done`. `node tests/restoration.cjs` verifies legacy saves, room selection, each location's rendered scenery and layered audio. `python3 tools/preview_rooms.py` generates `artifacts/room-atlas.html` for visual level review.
+```sh
+cc -O2 -o /tmp/polarity-movement tests/movement.c src/engine.c src/levels.c && /tmp/polarity-movement
+cc -O2 -o /tmp/polarity-city tests/city.c src/city.c && /tmp/polarity-city
+cc -O2 -o /tmp/polarity-adventure tests/adventure.c src/engine.c src/levels.c && /tmp/polarity-adventure
+python3 tests/rooms.py
+node tests/controller-profile.cjs
+```
 
-## Files
+The golden movement fingerprint is **`ee887670`**, covering 1,440 frames of movement and the original mechanics. City tests include the retained Color save decoder; the Advance cartridge accepts only its separate save signature/version.
 
-- `src/engine.c`: fixed-point movement, collision and charge rules
-- `tools/rooms.py`: eighteen individually composed routes and their design intent
-- `tools/make_assets.py`: original pixel art and compact room encoding
-- `tools/story.py`: authored dialogue and lost letters, checked against the screen width
-- `src/city.c`: portable progression, spatial navigation, letters and save migration
-- `src/music.c`: original theme and restoration-dependent instrumentation
-- `src/main.c`: Game Boy renderer, input, sound and game flow
-- `web/`: standalone static site; no production server dependencies
+Browser tests require Google Chrome and `npm ci`. Start `python3 -m http.server 8790 --directory web` in another terminal, then:
 
-## Credits
+```sh
+POLARITY_URL=http://localhost:8790 node tests/gba-timing.cjs
+POLARITY_URL=http://localhost:8790 node tests/gba-browser.cjs
+POLARITY_URL=http://localhost:8790 node tests/controller.cjs
+POLARITY_URL=http://localhost:8790 node tests/8bitdo.cjs
+POLARITY_URL=http://localhost:8790 node tests/touch.cjs
+```
 
-The web emulator is [binjgb](https://github.com/binji/binjgb), copyright Ben Smith, MIT licensed. Its license is included in `web/vendor/LICENSE-binjgb`. The cartridge is built with [GBDK 2020](https://gbdk.org/). Original game code, room layouts, and pixel artwork created for this project. No assets from Celeste, Mega Man, or Mario are used.
+These exercise actual browser emulation, isolated saves/reload, shoulder controls, the Color archive, simulated standard and raw 8BitDo reports, touch diagonals, pause/mute, focus/disconnection handling, and phone layouts. Physical controller firmware and real GBA hardware have not been tested here. Older `replay.cjs`, `restoration.cjs` and `save-and-map.cjs` target the archived Color build and its symbol file.
+
+## Source and credits
+
+- `src/engine.c`, `src/city.c`: portable movement and progression
+- `src/gba/`: native ARM startup, hardware renderer, game flow and audio
+- `tools/rooms.py`, `tools/story.py`: authored routes, residents and letters
+- `tools/gba_assets.py`, `tools/gba_music.py`: original indexed artwork and synthesized score
+- `web/app.js`: mGBA adapter, controls, audio and independent Advance saves
+- `web/color/`: preserved Color player and cartridge
+
+Advance emulation is [mGBA](https://github.com/mgba-emu/mgba) via [mGBA-wasm](https://github.com/wasm-gaming/mGBA-wasm), MPL-2.0; license and source links are in `web/vendor/mgba/`. The Color emulator is [binjgb](https://github.com/binji/binjgb), copyright Ben Smith, MIT licensed; its license is retained. Hardware implementation references include [Tonc](https://gbadev.net/tonc/). Game code, characters, level layouts, artwork and music are original to this project. No assets from Celeste, Mega Man or Mario are used.

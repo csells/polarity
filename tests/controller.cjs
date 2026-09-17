@@ -1,4 +1,4 @@
-const fs=require('fs');const symbols={};for(const l of fs.readFileSync('build/polarity.noi','utf8').split('\n')){const m=l.match(/^DEF _(deaths|game_mode) 0x([0-9A-F]+)/);if(m)symbols[m[1]]=parseInt(m[2],16)}
+const {symbols}=require('./gba-core.cjs');
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 (async()=>{

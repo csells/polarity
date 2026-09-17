@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@wasm-gaming/mgba-wasm": "0.1.1",
     "playwright": "^1.63.0"
   },
   "name": "polarity-storm-courier",

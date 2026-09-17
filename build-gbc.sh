@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+python3 tools/make_assets.py
+python3 tools/story.py
+mkdir -p build
+./tools/gbdk/bin/lcc -msm83:gb -Wm-yC -Wl-yt0x1B -Wl-ya1 -Wl-yo2 -Wm-ynPOLARITY -Wl-m -Wl-j -o "$PWD/build/polarity.gbc" src/main.c src/engine.c src/levels.c src/city.c src/story.c src/music.c
+cp build/polarity.gbc web/color/polarity.gbc
+printf 'Built web/color/polarity.gbc (%s bytes)\n' "$(wc -c < web/color/polarity.gbc)"

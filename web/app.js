@@ -13,17 +13,18 @@ function updateKeys(){
  // events so a quick tap cannot disappear between emulated input polls.
  if(!inputFlushPending){inputFlushPending=true;queueMicrotask(flushInput);}
 }
-function snapshot(){core._mgbawasm_state_save(statePtr);return core.HEAPU8.slice(statePtr,statePtr+core._mgbawasm_state_size());}
+function snapshot(){if(!core._mgbawasm_state_save(statePtr))throw Error('Could not capture emulator state');return core.HEAPU8.slice(statePtr,statePtr+core._mgbawasm_state_size());}
 function memoryOffset(addr){if(addr>=0x02000000&&addr<0x02040000)return 0x21000+addr-0x02000000;if(addr>=0x03000000&&addr<0x03008000)return 0x19000+addr-0x03000000;throw Error('Unsupported debug address');}
 const held=new Map(),pulses=new Map();
 let core,emu,romPtr,audio,audioNext=0,muted=false,playing=false,paused=false,lastTime=0,clockTimer,frames=0;
-let gain,frameImage,frameMemory,framePointer,failed=false;
+let gain,frameImage,frameMemory,framePointer,failed=false,emulatorOperation='startup';
 const audioSources=new Set(),maxAudioSources=12;
 function clearAudioQueue(){
  for(const src of audioSources){src.onended=null;src.stop();src.disconnect();}
  audioSources.clear();audioNext=0;
 }
 function failGame(error){
+ diagnostics.failure(error);
  if(failed)return;failed=true;paused=true;clearTimeout(clockTimer);
  console.error('Polarity stopped:',error);release();cartridgeSave();
  clearAudioQueue();if(audio)audio.suspend().catch(console.error);
@@ -34,7 +35,7 @@ function failGame(error){
 }
 let controllerDevice=null,controllerSetup=null,controllerProfiles={};
 try{const saved=JSON.parse(localStorage.getItem(ControllerProfile.storageKey)||'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))controllerProfiles=saved;}catch(error){console.warn('Saved controller layouts unavailable:',error);}
-let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false,controllerStartHeld=false;
+let pageActive=!document.hidden,controllerId=null,controllerButtons=new Set(),gamepadBlocked=false,controllerStartHeld=false,controllerResync=false;
 const keymap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyZ:'A',Space:'A',KeyX:'B',ShiftLeft:'B',ShiftRight:'B',Enter:'start',KeyR:'select',KeyQ:'L',KeyE:'R'};
 const saveKey='polarity-advance-save-v2';
 let lastSave='',saveTime=0;
@@ -89,23 +90,26 @@ function audioBuffer(sound=true){
 function advance(ticks,sound=true){
  const before=frames;frameRemainder+=ticks;
  while(frameRemainder>=70224){
+  emulatorOperation='input';
   flushInput();core._mgbawasm_set_keys(inputQueue.length?inputQueue.shift():desiredMask);
-  core._mgbawasm_run_frame();frames++;emulatedTicks+=70224;frameRemainder-=70224;audioBuffer(sound);
+  emulatorOperation='frame';core._mgbawasm_run_frame();frames++;emulatedTicks+=70224;frameRemainder-=70224;
+  emulatorOperation='audio';audioBuffer(sound);
   for(const [key,until] of pulses)if(emulatedTicks>=until){setKey(key,false,'pulse');pulses.delete(key);}
  }
- if(frames!==before)render();
+ if(frames!==before){emulatorOperation='render';render();}emulatorOperation='idle';
 }
 // Advance simulation independently of throttled/occluded animation callbacks.
 // Hidden pages pause explicitly; a visible page retains native input cadence.
 function loop(now){
- if(failed)return;
+ if(failed||document.hidden||!pageActive)return;
  try{
   pollGamepad();
   if(!playing||paused||controllerSetup)lastTime=now;
   else{const dt=lastTime?Math.min((now-lastTime)/1000,.1):0;lastTime=now;advance(dt*4194304);if(now-saveTime>1000){saveTime=now;cartridgeSave();}}
-  clockTimer=setTimeout(()=>loop(performance.now()),8);
+  diagnostics.tick(now);clockTimer=setTimeout(()=>loop(performance.now()),8);
  }catch(error){failGame(error);}
 }
+function wakeLoop(){clearTimeout(clockTimer);lastTime=0;if(emu&&!failed&&!document.hidden&&pageActive)clockTimer=setTimeout(()=>loop(performance.now()),8);}
 function pulse(key){setKey(key,true,'pulse');pulses.set(key,emulatedTicks+280896);}
 function updateSoundButton(){
  $('#sound').setAttribute('aria-pressed',String(muted));
@@ -118,7 +122,7 @@ function start(){
  try{
   audio=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
   gain=audio.createGain();gain.gain.value=muted?0:.65;gain.connect(audio.destination);
-  audio.addEventListener('statechange',updateSoundButton);
+  audio.addEventListener('statechange',()=>{updateSoundButton();diagnostics.event('audio-statechange');diagnostics.persist();});
   audio.resume().catch(error=>{console.warn('Sound unavailable:',error);updateSoundButton();});
   updateSoundButton();
  }catch(error){console.warn('Sound unavailable:',error);$('#sound span').textContent='NO AUDIO';}
@@ -162,9 +166,12 @@ $('#sound').addEventListener('click',()=>{
  updateSoundButton();
 });
 $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('.play-section').requestFullscreen)await $('.play-section').requestFullscreen();else{$('.play-section').scrollIntoView({block:'start',behavior:'smooth'});$('#status').textContent='TIP: ROTATE YOUR PHONE TO LANDSCAPE';}}catch(e){$('#status').textContent='FULLSCREEN UNAVAILABLE ON THIS BROWSER';}});
-window.addEventListener('blur',()=>{pageActive=false;release();setPaused(true);});
-window.addEventListener('focus',()=>{pageActive=!document.hidden;});
-document.addEventListener('visibilitychange',()=>{pageActive=!document.hidden&&document.hasFocus();if(document.hidden){release();setPaused(true);}});
+window.addEventListener('blur',()=>{pageActive=false;controllerResync=true;release();setPaused(true);clearTimeout(clockTimer);});
+window.addEventListener('focus',()=>{pageActive=!document.hidden;wakeLoop();});
+document.addEventListener('visibilitychange',()=>{pageActive=!document.hidden&&document.hasFocus();if(document.hidden){controllerResync=true;release();setPaused(true);clearTimeout(clockTimer);}else wakeLoop();});
+document.addEventListener('freeze',()=>{controllerResync=true;setPaused(true);clearTimeout(clockTimer);});
+document.addEventListener('resume',()=>{pageActive=!document.hidden&&document.hasFocus();wakeLoop();});
+window.addEventListener('pageshow',()=>{pageActive=!document.hidden&&document.hasFocus();wakeLoop();});
 function controllerMessage(message){const el=$('#controller-status');if(el.textContent!==message)el.textContent=message;}
 function customProfile(p){const value=controllerProfiles[ControllerProfile.deviceKey(p)];return ControllerProfile.valid(p,value)?value:null;}
 function saveProfiles(){
@@ -210,7 +217,7 @@ function readController(p,profile){
  return {left:pressed(14)||x<-.3,right:pressed(15)||x>.3,up:pressed(12)||y<-.3,down:pressed(13)||y>.3,A:pressed(0),B:pressed(1)||pressed(2),start:pressed(9),select:pressed(8),L:pressed(4),R:pressed(5)};
 }
 function pollGamepad(){
- if(gamepadBlocked)return;
+ if(gamepadBlocked||!pageActive||document.hidden)return;
  if(!navigator.getGamepads){controllerMessage('Controller input is unavailable in this browser.');return;}
  let pads;
  try{pads=Array.from(navigator.getGamepads()).filter(p=>p&&p.connected);}
@@ -228,6 +235,7 @@ function pollGamepad(){
   if(controllerSetup)endControllerSetup('Controller changed or disconnected. Connect it and restart setup.');
  }
  if(!controller){
+  controllerResync=false;
   controllerMessage('Connect a controller, then press a button.');
   return;
  }
@@ -238,6 +246,9 @@ function pollGamepad(){
  const snes=/8bitdo|sn30|sf30|sfc30/i.test(controller.id);
  controllerMessage(profile?'Controller connected · Custom layout ready':snes?'8BitDo connected · B: jump · Y / A: dash · START: pause':'Controller connected · Start / Options to pause');
  const buttons=new Set(Object.keys(keys).filter(key=>keys[key]));
+ // Polling sleeps in the background. Treat buttons already held on return as
+ // existing holds, not new presses that could accidentally resume the game.
+ if(controllerResync){controllerButtons=buttons;controllerResync=false;}
  if(controllerStartHeld&&buttons.size===0)controllerStartHeld=false;
  const pressed=key=>buttons.has(key)&&!controllerButtons.has(key);
  let transition=false;
@@ -254,15 +265,25 @@ function pollGamepad(){
  const enabled=pageActive&&playing&&!paused&&!transition&&!controllerStartHeld;
  for(const [key,on]of Object.entries(keys))setKey(key,enabled&&on,'gamepad');
 }
+const diagnostics=new PolarityDiagnostics({
+ status:()=>({frames,playing,paused,failed,emulatorOperation,frameRemainder,inputMask:desiredMask,queuedInputs:inputQueue.length,viewport:[innerWidth,innerHeight],
+  wasmBytes:core?.HEAPU8?.length||0,jsHeapBytes:performance.memory?.usedJSHeapSize||null,
+  audioState:audio?.state||'not-created',audioTime:audio?.currentTime||0,queuedAudio:audioSources.size,
+  controller:controllerDevice?{mapping:controllerDevice.mapping,buttons:controllerDevice.buttons.length,axes:controllerDevice.axes.length}:null}),
+ capture:()=>emu&&!failed?{state:snapshot(),sram:lastSave}:null
+});
 (async()=>{try{
  const result=await Promise.all([createMgbaModule({locateFile:p=>'vendor/mgba/'+p}),fetch('polarity.gba')]);core=result[0];
  if(!result[1].ok)throw Error('Cartridge download failed');
- const rom=new Uint8Array(await result[1].arrayBuffer());romPtr=core._malloc(rom.length);core.HEAPU8.set(rom,romPtr);
+ const rom=new Uint8Array(await result[1].arrayBuffer());
+ const hash=await crypto.subtle.digest('SHA-256',rom);
+ diagnostics.current.cartridge={bytes:rom.length,sha256:Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('')};
+ romPtr=core._malloc(rom.length);core.HEAPU8.set(rom,romPtr);
  core._mgbawasm_init();core._mgbawasm_set_log_level(0);
  if(!core._mgbawasm_load(romPtr,rom.length,0,0,0,0,1))throw Error('Invalid Advance cartridge');
  core._free(romPtr);emu=1;core._mgbawasm_set_idle_optimization(1);
  audioPtr=core._malloc(8192);statePtr=core._malloc(core._mgbawasm_state_size());
  // Let mGBA detect SRAM from the cartridge before restoring it, then reboot.
- advance(70224*8,false);cartridgeSave(true);core._mgbawasm_reset();advance(70224*8,false);$('#loading').hidden=true;$('#play').hidden=false;clockTimer=setTimeout(()=>loop(performance.now()),8);
+ advance(70224*8,false);cartridgeSave(true);core._mgbawasm_reset();advance(70224*8,false);$('#loading').hidden=true;$('#play').hidden=false;diagnostics.checkpoint('cartridge-ready');wakeLoop();
  window.polarity={get core(){return core},get emu(){return emu},setKey,release,advance,render,save:cartridgeSave,snapshot,get frames(){return frames},get playing(){return playing},get paused(){return paused},freeze(){clearTimeout(clockTimer)},read(addr){return snapshot()[memoryOffset(addr)]},write(addr,v){const b=snapshot();b[memoryOffset(addr)]=v;core.HEAPU8.set(b,statePtr);if(!core._mgbawasm_state_load(statePtr))throw Error('State write failed');}};
- }catch(e){$('#load-status').textContent='COULD NOT LOAD — PLEASE RELOAD';console.error(e);$('#status').textContent=e.message;}})();
+ }catch(e){diagnostics.failure(e,'startup-error');$('#load-status').textContent='COULD NOT LOAD — PLEASE RELOAD';console.error(e);$('#status').textContent=e.message;}})();

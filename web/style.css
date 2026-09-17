@@ -34,3 +34,5 @@ body{background-image:radial-gradient(ellipse at 70% 10%,#23384d66,transparent 6
 @media(max-height:500px) and (orientation:landscape){#play{padding-bottom:10px}}
 
 .recovery{margin:16px 0;padding:18px;background:#202c39;border:1px solid #eabe85;border-radius:10px;color:#f4efda;font:14px/1.5 system-ui,sans-serif}.recovery[hidden]{display:none}.recovery button{padding:10px 14px;border:1px solid #eabe85;background:#ffd090;color:#202635;border-radius:5px;cursor:pointer}.recovery details{margin-top:12px}.recovery pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto}@media(max-height:500px) and (orientation:landscape){.recovery:not([hidden]){position:fixed;inset:10% 12%;z-index:20;overflow:auto;margin:0}}
+
+.diagnostics{margin:14px 0;color:#c5cece;font:12px/1.6 system-ui,sans-serif}.diagnostics summary{cursor:pointer;color:#eabe85}.diagnostics button{padding:10px 14px;background:#ffd090;color:#202635;border:0;border-radius:5px}.diagnostics p{max-width:65ch}.recovery button{margin-bottom:6px}

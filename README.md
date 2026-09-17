@@ -42,6 +42,28 @@ This reimagining uses Advance save version 2 (`polarity-advance-save-v2`). Its e
 
 The original Color release is tagged **`gameboy-color`** at `2ed40f6b44584ca54b2b96a299e33c72896f8b62`. Its original cartridge and player remain at `/color/`, using their existing Color save. The Advance ROM is `web/polarity.gba`; the archived Color ROM is `web/color/polarity.gbc`.
 
+## Crash reports
+
+If the game freezes or the tab closes, reopen the game, expand **Crash reports**
+below the console, and choose **Download crash report**. Share the resulting
+`polarity-crash-report-*.json` file. The same download is available on the error
+recovery panel. No report is uploaded automatically.
+
+The local recorder keeps at most three sessions and eighty recent events per
+session, including the latest recorded failure. It records focus, visibility,
+freeze/resume, audio state, memory measurements when available, console warnings,
+and JavaScript errors. A healthy mGBA snapshot is saved every thirty seconds while
+active and at lifecycle transitions, together with Advance SRAM, the cartridge
+hash, and the deployed browser-code hash. A killed browser process cannot supply
+an in-page error stack; the report retains the preceding snapshot and events.
+Storage restrictions are shown explicitly; a live download still works if local
+storage is full. Reports contain game state and device/browser details, not
+unrelated local storage, cookies, or browsing history.
+
+The player stops emulation and input polling when inactive and stays paused when
+you return. Held controller buttons are resynchronized before accepting new
+presses. Press Pause/Start to resume.
+
 ## Build and run
 
 The ready-to-play cartridges and browser emulator binaries are included. To serve them locally:
@@ -100,6 +122,7 @@ The golden movement fingerprint is **`ee887670`**, covering 1,440 frames of move
 Browser tests require Google Chrome and `npm ci`. Start `python3 -m http.server 8790 --directory web` in another terminal, then:
 
 ```sh
+POLARITY_URL=http://localhost:8790 node tests/browser-diagnostics.cjs
 POLARITY_URL=http://localhost:8790 node tests/browser-audio.cjs
 POLARITY_URL=http://localhost:8790 node tests/browser-recovery.cjs
 POLARITY_URL=http://localhost:8790 node tests/gba-soak.cjs # ten minutes of real-time playback

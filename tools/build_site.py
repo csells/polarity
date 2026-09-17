@@ -1,10 +1,19 @@
 from pathlib import Path
-import shutil
+import shutil, hashlib
 root = Path(__file__).resolve().parent.parent
 out = root / 'dist'
 if out.exists():
     shutil.rmtree(out)
 shutil.copytree(root / 'web', out / 'client')
+# Identify the exact browser code in downloaded crash reports, independent of
+# whether this build was made before or after its source commit was created.
+identity=hashlib.sha256()
+for name in ('app.js','diagnostics.js','controller-profile.js'):
+    identity.update(name.encode()+b'\0'+(root/'web'/name).read_bytes())
+index=out/'client'/'index.html'
+html=index.read_text()
+assert '</head>' in html
+index.write_text(html.replace('</head>',f'<meta name="polarity-build" content="{identity.hexdigest()}"></head>',1))
 (out / 'server').mkdir()
 shutil.copyfile(root / 'hosting-worker.js', out / 'server' / 'index.js')
 assert (out / 'client' / 'index.html').is_file()

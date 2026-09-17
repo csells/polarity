@@ -61,3 +61,26 @@ checkpoint reload, GBA shoulders, phone/landscape layout and independent Color
 storage. ROM SHA-256:
 `4485baf17cae85508c2f8d25d3f5e83405f5c7e09e209d4e0c15ff2f95ab5809`.
 The specific reported crash remains open as described above.
+
+## Background-crash diagnostics follow-up
+
+Chris reports crashes most often while the game is idle in the background.
+The exact underlying browser/emulator failure remains unconfirmed.
+
+- [x] Add an always-available JSON report download, including recent lifecycle,
+  audio, memory and console/error evidence, game SRAM, a last healthy mGBA
+  snapshot, cartridge SHA-256 and deployed player-code identity.
+- [x] Persist bounded local history (three sessions, eighty events each), retain
+  the latest recorded failure across reloads, and show storage failures clearly.
+- [x] Suspend background input polling as well as emulation; preserve controller
+  release-before-resume behavior after returning to the page.
+- [ ] Finish regression checks and publish the diagnostic recorder.
+
+The diagnostic acceptance test covers actual tab focus loss, injected
+freeze/resume events (automation forces visibility to remain visible), a runtime
+exception, and an actual isolated Chrome renderer crash. The downloaded emulator
+snapshot is loaded and advanced in the same native mGBA core. Storage-quota
+failure, console warnings and unhandled promise rejections are also exercised.
+No claim is made that the family's specific crash was reproduced.
+
+Browser discard semantics: [Chrome Page Lifecycle API](https://developer.chrome.com/docs/web-platform/page-lifecycle-api).

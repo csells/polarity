@@ -105,6 +105,8 @@ POLARITY_URL=http://localhost:8790 node tests/8bitdo.cjs
 POLARITY_URL=http://localhost:8790 node tests/touch.cjs
 ```
 
+On a busy Mac, prefix a browser test with `taskpolicy -a env` before its `POLARITY_URL=...` assignment to use application scheduling. Background scheduling can otherwise dominate frame-rate measurements. The timing assertion remains unchanged.
+
 These exercise actual browser emulation, isolated saves/reload, shoulder controls, the Color archive, simulated standard and raw 8BitDo reports, touch diagonals, pause/mute, focus/disconnection handling, and phone layouts. Physical controller firmware and real GBA hardware have not been tested here. Older `replay.cjs`, `restoration.cjs` and `save-and-map.cjs` target the archived Color build and its symbol file.
 
 ## Source and credits
